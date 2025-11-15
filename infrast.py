@@ -3,23 +3,6 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
 
-@dataclass
-class GroupVariant:
-    name: str
-    operators: List[str]
-    synergy_efficiency: float
-    elite_requirements: Dict[str, int]
-    requires_control_center: List[Dict[str, Any]]
-    special: Dict[str, Any]
-    priority: int = 0
-
-
-@dataclass
-class Group:
-    id: str
-    name: str
-    variants: List[GroupVariant]
-
 
 @dataclass
 class Operator:
@@ -160,12 +143,16 @@ class WorkplaceOptimizer:
                                     operator=dorm_name, elite_required=dorm_elite
                                 ))
 
+                        # 添加 description 定义
+                        description = "通用单人" if rule_data.get('apply_each', False) else rule_data.get('note',
+                                                                                                          f"{system_name} - {', '.join(operators)}")
+
                         expanded_rules.append(OperatorEfficiency(
                             operators=operators,
                             workplace_type=workplace_type,
                             base_efficiency=0,
                             synergy_efficiency=rule_data['efficiency'],
-                            description=description,
+                            description=description,  # 现在已定义
                             elite_requirements=elite_requirements,
                             requires_control_center=control_center_reqs,
                             requires_dormitory=dormitory_reqs,  # 新增
@@ -565,16 +552,20 @@ class WorkplaceOptimizer:
                 "rooms": {
                     "trading": [],
                     "manufacture": [],
-                    "control": [{"operators": []}],  # 假设控制中枢为空，可根据需要扩展
+                    "control": [{"operators": []}],  # 初始化为空
                     "power": [{"operators": []}],
                     "meeting": [{"autofill": True}],
                     "hire": [{"operators": []}],
-                    "dormitory": [{"autofill": True} for _ in range(4)],  # 假设4个宿舍
+                    "dormitory": [{"autofill": True} for _ in range(4)],  # 初始化为自动填充
                     "processing": [{"operators": []}]
                 }
             }
             # 班次内干员使用跟踪，防止同一班重复分配
             shift_used_names = set()
+            # 班次内控制中枢干员集合（去重）
+            control_operators = set()
+            # 班次内宿舍干员集合（去重）
+            dormitory_operators = set()
 
             # 优化贸易站
             for workplace in self.workplaces['trading_stations']:
@@ -585,6 +576,18 @@ class WorkplaceOptimizer:
                     "autofill": False
                 }
                 plan["rooms"]["trading"].append(room)
+                # 添加控制中枢需求干员
+                for req in result.control_center_requirements:
+                    if req.operator not in shift_used_names and operator_usage.get(req.operator, 0) < 2:
+                        control_operators.add(req.operator)
+                        shift_used_names.add(req.operator)
+                        operator_usage[req.operator] += 1
+                # 添加宿舍需求干员
+                for req in result.dormitory_requirements:
+                    if req.operator not in shift_used_names and operator_usage.get(req.operator, 0) < 2:
+                        dormitory_operators.add(req.operator)
+                        shift_used_names.add(req.operator)
+                        operator_usage[req.operator] += 1
 
             # 优化制造站
             for workplace in self.workplaces['manufacturing_stations']:
@@ -595,6 +598,28 @@ class WorkplaceOptimizer:
                     "autofill": False
                 }
                 plan["rooms"]["manufacture"].append(room)
+                # 添加控制中枢需求干员
+                for req in result.control_center_requirements:
+                    if req.operator not in shift_used_names and operator_usage.get(req.operator, 0) < 2:
+                        control_operators.add(req.operator)
+                        shift_used_names.add(req.operator)
+                        operator_usage[req.operator] += 1
+                # 添加宿舍需求干员
+                for req in result.dormitory_requirements:
+                    if req.operator not in shift_used_names and operator_usage.get(req.operator, 0) < 2:
+                        dormitory_operators.add(req.operator)
+                        shift_used_names.add(req.operator)
+                        operator_usage[req.operator] += 1
+
+            # 分配控制中枢干员
+            plan["rooms"]["control"][0]["operators"] = list(control_operators)
+
+            # 分配宿舍干员（分配到第一个宿舍房间）
+            if dormitory_operators:
+                plan["rooms"]["dormitory"][0] = {
+                    "operators": list(dormitory_operators),
+                    "autofill": False
+                }
 
             results["plans"].append(plan)
 
