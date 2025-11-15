@@ -357,15 +357,26 @@ class WorkplaceOptimizer:
         applied_control_center_reqs: List[ControlCenterRequirement] = []
 
         # 分组规则：特定体系 vs 通用（通用组合 + 通用单人）
-        specific_systems = ['巫恋组', '但书体系', '孑体系']  # 可根据JSON扩展
+        specific_systems = {
+            '巫恋组': ['巫恋组', '裁缝b'],  # 巫恋组可能包含"裁缝b"等关键词
+            '但书体系': ['但书体系'],
+            '孑体系': ['孑体系']
+        }
         general_systems = ['通用组合', '通用单人']
 
         # 1. 先处理特定体系（按优先级排序）
-        for system_name in specific_systems:
+        for system_name, keywords in specific_systems.items():
             if remaining_slots <= 0:
                 break
-            system_rules = [r for r in self.efficiency_rules if
-                            r.workplace_type == workplace_type and system_name in r.description]
+
+            # 使用关键词匹配规则
+            system_rules = []
+            for r in self.efficiency_rules:
+                if r.workplace_type == workplace_type:
+                    # 检查规则描述是否包含任一关键词
+                    if any(keyword in r.description for keyword in keywords):
+                        system_rules.append(r)
+
             system_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
 
             if self.debug and system_name == "巫恋组":
