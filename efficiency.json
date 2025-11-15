@@ -1,0 +1,254 @@
+{
+  "workplaces": {
+    "trading_stations": [
+      { "id": "trading_1", "name": "贸易站1", "max_operators": 3, "base_efficiency": 100 },
+      { "id": "trading_2", "name": "贸易站2", "max_operators": 3, "base_efficiency": 100 },
+      { "id": "trading_3", "name": "贸易站3", "max_operators": 3, "base_efficiency": 100 }
+    ],
+    "manufacturing_stations": [
+      { "id": "manufacturing_1", "name": "制造站1", "max_operators": 3, "base_efficiency": 100 },
+      { "id": "manufacturing_2", "name": "制造站2", "max_operators": 3, "base_efficiency": 100 },
+      { "id": "manufacturing_3", "name": "制造站3", "max_operators": 3, "base_efficiency": 100 }
+    ],
+    "control_center": { "id": "control_center", "name": "控制中枢", "max_operators": 5, "base_efficiency": 0 }
+  },
+  "combination_rules": {
+    "trading_station": {
+      "巫恋组": {
+        "base_combo": ["巫恋/2", "龙舌兰/2"],
+        "rules": [
+        {
+          "combo": ["柏喙/2"],
+          "efficiency": 138,
+          "note": "裁缝b，138%贸+46%金",
+          "priority": 999
+        },
+        {
+          "combo": ["卡夫卡/2"],
+          "efficiency": 138,
+          "note": "裁缝b，138%贸+46%金",
+          "priority": 999
+        },
+        {
+          "combo": ["明椒/2"],
+          "efficiency": 138,
+          "note": "裁缝b，138%贸+46%金",
+          "priority": 999
+        },
+        {
+          "combo": ["折光/2"],
+          "efficiency": 138,
+          "note": "裁缝b，138%贸+46%金",
+          "priority": 999
+        }
+      ]},
+      "但书体系": {
+        "base_combo": ["但书/2"],
+        "rules": [
+        {
+          "combo": ["鸿雪/2", "图耶/2"],
+          "efficiency": 301,
+          "note": "（较麻烦需要研究）绮良跨站, 4赤金4杜林",
+          "priority": -1
+        },
+        {
+          "combo": ["乌有/2"],
+          "efficiency": 270,
+          "note": "（较麻烦需要研究）搭配满烟火乌有95+40%",
+          "priority": -1
+        },
+        {
+          "combo": ["黑键/2", "乌有/2"],
+          "efficiency": 219,
+          "note": "黑键乌有混用满挂件",
+          "priority": 130
+        },
+        {
+          "combo": ["推进之王", "摩根/2"],
+          "control_center": ["戴菲恩/2"],
+          "efficiency": 208,
+          "priority": 125
+        },
+        {
+          "combo": ["黑键/2", "空弦/2"],
+          "efficiency": 195,
+          "priority": 120
+        },
+        {
+          "combo": ["黑键/2", "伺夜/2"],
+          "efficiency": 195,
+          "priority": 120
+        },
+        {
+          "combo": ["孑", "银灰/2"],
+          "control_center": ["灵知/2"],
+          "efficiency": 192,
+          "priority": 118
+        },
+        {
+          "combo": ["空弦/2", "伺夜/2"],
+          "efficiency": 185,
+          "priority": 115
+        },
+        {
+          "combo": ["蕾缪安/2", "能天使/2"],
+          "efficiency": 185,
+          "priority": 115
+        },
+        {
+          "combo": ["鸿雪/2", "图耶/2"],
+          "efficiency": 185,
+          "note": "2赤金线",
+          "priority": 115
+        }
+      ]},
+      "孑体系": {
+        "base_combo": ["孑/1"],
+        "rules": [
+        {
+          "combo": ["德克萨斯", "拉普兰德/2"],
+          "efficiency": 81,
+          "note": "孑0效率递减",
+          "priority": -1
+        },
+        {
+          "combo": ["琳琅诗怀雅/2"],
+          "control_center": ["灵知/2"],
+          "efficiency": 60,
+          "note": "孑0效率递减",
+          "priority": -1
+        },
+        {
+          "combo": ["锏/2"],
+          "control_center": ["灵知/2"],
+          "efficiency": 60,
+          "note": "孑0效率递减",
+          "priority": -1
+        },
+        {
+          "combo": ["银灰/2"],
+          "control_center": ["灵知/2"],
+          "efficiency": 45,
+          "note": "孑0效率递减",
+          "priority": -1
+        },
+        {
+          "combo": ["崖心/2"],
+          "control_center": ["灵知/2"],
+          "efficiency": 40,
+          "note": "孑0效率递减",
+          "priority": -1
+        },
+
+        {
+          "combo": ["银灰/2"],
+          "control_center": ["灵知/2"],
+          "efficiency": 45,
+          "priority": 68
+        },
+        {
+          "combo": ["琳琅诗怀雅/2"],
+          "control_center": ["灵知/2"],
+          "efficiency": 44,
+          "priority": 67
+        },
+        {
+          "combo": ["崖心/2"],
+          "control_center": ["灵知/2"],
+          "efficiency": 40,
+          "priority": 66
+        },
+        {
+          "combo": ["锏/2"],
+          "control_center": ["灵知/2"],
+          "efficiency": 36,
+          "priority": 65
+        },
+        {
+          "combo": ["角峰"],
+          "control_center": ["灵知/2"],
+          "efficiency": 32,
+          "priority": 60
+        },
+        {
+          "combo": ["讯使"],
+          "control_center": ["灵知/2"],
+          "efficiency": 32,
+          "priority": 60
+        },
+        {
+          "combo": ["德克萨斯", "拉普兰德"],
+          "efficiency": 57,
+          "priority": 59
+        },
+        {
+          "combo": ["银灰", "崖心"],
+          "efficiency": 55,
+          "priority": 58
+        }
+        ]},
+      "通用组合": [
+        {
+          "combo": ["绮良/2", "鸿雪/2", "图耶/2"],
+          "efficiency": 160,
+          "note": "4赤金线4杜林",
+          "priority": 95
+        },
+        {
+          "combo": ["推进之王", "摩根/2", "维娜/2"],
+          "control_center": ["戴菲恩/2"],
+          "efficiency": 135,
+          "priority": 94
+        },
+        {
+          "combo": ["绮良/2", "鸿雪/2", "图耶/2"],
+          "efficiency": 110,
+          "note": "2赤金线4杜林,权重低",
+          "priority": 80
+        },
+        {
+          "combo": ["推进之王", "摩根/2"],
+          "control_center": ["戴菲恩/2"],
+          "efficiency": 95,
+          "priority": 92
+        },
+        {
+          "combo": ["蕾缪安/2", "能天使/2"],
+          "efficiency": 80,
+          "priority": 80
+        },
+        {
+          "combo": ["鸿雪/2", "图耶/2"],
+          "efficiency": 80,
+          "note": "2赤金线",
+          "priority": 80
+        },
+        {
+          "combo": ["推进之王", "摩根/2"],
+          "efficiency": 75,
+          "priority": 78
+        },
+        {
+          "combo": ["德克萨斯", "拉普兰德"],
+          "efficiency": 65,
+          "priority": 75
+        }
+      ],
+      "通用单人": [
+        { "combo": ["乌有/2"], "efficiency": 95, "note": "20%-95%", "priority": 50 },
+        { "combo": ["黑键/2"], "efficiency": 47, "note": "32%-47%", "priority": 49 },
+        { "combo": ["泰拉大陆调查团"], "efficiency": 41, "note": "较麻烦，不考虑", "priority": -1 },
+        { "combo": ["伺夜/2"], "efficiency": 40, "note": "需会客室满级", "priority": 47 },
+        { "combo": ["空弦/2"], "efficiency": 40, "note": "需宿舍满级", "priority": 47 },
+        { "combo": ["深巡/2"], "efficiency": 40, "note": "30%-40%", "priority": 46 },
+        { "combo": ["赫德雷/2"], "efficiency": 40, "note": "30%-40%", "priority": 46 },
+        { "combo": ["能天使/2"], "efficiency": 35, "priority": 45 },
+        { "combo": ["齐尔查克/2"], "efficiency": 35, "note": "31%-35%，需宿舍有森西", "priority": 45 },
+        { "combo": ["海蒂/2"], "efficiency": 35, "priority": 45 },
+        { "combo": ["雪雉/2"], "efficiency": 35, "priority": 45 },
+        { "combo": ["石英/1"], "efficiency": 34, "priority": 44 },
+        { "combo": ["月见夜", "古米", "夜刀", "空爆", "慕斯", "缠丸/1", "安比尔/1", "芬/1", "渡桥/2", "瑰盐/2", "新约能天使/2"], "efficiency": 30, "apply_each": true, "priority": 1 }
+      ]
+    }
+  }
+}

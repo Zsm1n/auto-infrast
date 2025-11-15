@@ -1,0 +1,701 @@
+import json
+from typing import Dict, List, Any, Optional
+from dataclasses import dataclass
+from itertools import combinations, product
+import math
+
+
+@dataclass
+class GroupVariant:
+    name: str
+    operators: List[str]
+    synergy_efficiency: float
+    elite_requirements: Dict[str, int]
+    requires_control_center: List[Dict[str, Any]]
+    special: Dict[str, Any]
+    priority: int = 0
+
+
+@dataclass
+class Group:
+    id: str
+    name: str
+    variants: List[GroupVariant]
+
+
+@dataclass
+class Operator:
+    id: str
+    name: str
+    elite: int
+    level: int
+    own: bool
+    potential: int
+    rarity: int
+
+
+@dataclass
+class ControlCenterRequirement:
+    operator: str
+    elite_required: int
+
+
+@dataclass
+class OperatorEfficiency:
+    operators: List[str]
+    workplace_type: str
+    base_efficiency: float
+    synergy_efficiency: float
+    description: str
+    elite_requirements: Dict[str, int]
+    requires_control_center: List[ControlCenterRequirement]
+    special_conditions: Optional[str] = None
+    apply_each: bool = False
+    priority: int = 0
+
+
+@dataclass
+class Workplace:
+    id: str
+    name: str
+    max_operators: int
+    base_efficiency: float
+
+
+@dataclass
+class AssignmentResult:
+    workplace: Workplace
+    optimal_operators: List[Operator]
+    total_efficiency: float
+    operator_efficiency: float
+    applied_combinations: List[str]
+    control_center_requirements: List[ControlCenterRequirement]
+
+
+class WorkplaceOptimizer:
+    def __init__(self, efficiency_file: str, operator_file: str, debug: bool = False):
+        # 保存文件名，便于调试输出
+        self.efficiency_file = efficiency_file
+        self.operator_file = operator_file
+        self.debug = debug
+
+        self.efficiency_data = self.load_json(efficiency_file)
+        self.operator_data = self.load_json(operator_file)
+        self.operators = self.load_operators()
+        self.efficiency_rules = self.load_efficiency_rules()
+        self.workplaces = self.load_workplaces()
+
+        # 如果启用调试模式，打印加载信息和摘要
+        if self.debug:
+            self.print_loaded_files()
+            self.print_operator_summary()
+            self.print_efficiency_rules(limit=20)
+            self.print_workplaces()
+
+    def load_json(self, file_path: str) -> Any:
+        """加载JSON文件"""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            print("加载文件:", file_path)
+            return json.load(f)
+
+    def load_operators(self) -> Dict[str, Operator]:
+        """加载干员配置"""
+        operators = {}
+        for op_data in self.operator_data:
+            operators[op_data['name']] = Operator(
+                id=op_data['id'],
+                name=op_data['name'],
+                elite=op_data['elite'],
+                level=op_data['level'],
+                own=op_data['own'],
+                potential=op_data['potential'],
+                rarity=op_data['rarity']
+            )
+        return operators
+
+    def load_efficiency_rules(self) -> List[OperatorEfficiency]:
+        """加载并解析效率规则，适配新的 combination_rules 结构。"""
+        expanded_rules: List[OperatorEfficiency] = []
+
+        def parse_operator_string(op_str: str) -> tuple[str, int]:
+            if '/' in op_str:
+                name, elite_str = op_str.split('/', 1)
+                return name.strip(), int(elite_str.strip())
+            else:
+                return op_str.strip(), 0
+
+        for workplace_type, systems in self.efficiency_data.get('combination_rules', {}).items():
+            for system_name, system_data in systems.items():
+                if isinstance(system_data, list):
+                    # 直接是规则列表，如 "通用组合"、"通用单人"
+                    for rule_data in system_data:
+                        operators = []
+                        elite_requirements = {}
+                        for op_str in rule_data['combo']:
+                            name, elite = parse_operator_string(op_str)
+                            operators.append(name)
+                            if elite > 0:
+                                elite_requirements[name] = elite
+
+                        control_center_reqs = []
+                        if 'control_center' in rule_data:
+                            for cc_str in rule_data['control_center']:
+                                cc_name, cc_elite = parse_operator_string(cc_str)
+                                control_center_reqs.append(ControlCenterRequirement(
+                                    operator=cc_name, elite_required=cc_elite
+                                ))
+
+                        expanded_rules.append(OperatorEfficiency(
+                            operators=operators,
+                            workplace_type=workplace_type,
+                            base_efficiency=0,
+                            synergy_efficiency=rule_data['efficiency'],
+                            description=rule_data.get('note', f"{system_name} - {', '.join(operators)}"),
+                            elite_requirements=elite_requirements,
+                            requires_control_center=control_center_reqs,
+                            special_conditions=None,
+                            apply_each=rule_data.get('apply_each', False),
+                            priority=rule_data.get('priority', 0)
+                        ))
+
+                elif isinstance(system_data, dict):
+                    # 处理有 base_combo 的体系，如 "巫恋组"、"但书体系"、"孑体系"
+                    base_operators = []
+                    base_elite_requirements = {}
+
+                    # 处理基础组合
+                    if 'base_combo' in system_data:
+                        for op_str in system_data['base_combo']:
+                            name, elite = parse_operator_string(op_str)
+                            base_operators.append(name)
+                            if elite > 0:
+                                base_elite_requirements[name] = elite
+
+                    # 处理规则
+                    for rule_data in system_data.get('rules', []):
+                        # 合并基础组合和规则中的额外干员
+                        all_operators = base_operators.copy()
+                        all_elite_requirements = base_elite_requirements.copy()
+
+                        # 添加规则中的干员
+                        for op_str in rule_data.get('combo', []):
+                            name, elite = parse_operator_string(op_str)
+                            all_operators.append(name)
+                            if elite > 0:
+                                all_elite_requirements[name] = max(all_elite_requirements.get(name, 0), elite)
+
+                        control_center_reqs = []
+                        # 添加规则中的中枢需求
+                        if 'control_center' in rule_data:
+                            for cc_str in rule_data['control_center']:
+                                cc_name, cc_elite = parse_operator_string(cc_str)
+                                control_center_reqs.append(ControlCenterRequirement(
+                                    operator=cc_name, elite_required=cc_elite
+                                ))
+
+                        # 添加基础组合的中枢需求（如果有）
+                        if 'control_center' in system_data:
+                            for cc_str in system_data['control_center']:
+                                cc_name, cc_elite = parse_operator_string(cc_str)
+                                control_center_reqs.append(ControlCenterRequirement(
+                                    operator=cc_name, elite_required=cc_elite
+                                ))
+
+                        expanded_rules.append(OperatorEfficiency(
+                            operators=all_operators,
+                            workplace_type=workplace_type,
+                            base_efficiency=0,
+                            synergy_efficiency=rule_data['efficiency'],
+                            description=rule_data.get('note', f"{system_name} - {', '.join(all_operators)}"),
+                            elite_requirements=all_elite_requirements,
+                            requires_control_center=control_center_reqs,
+                            special_conditions=None,
+                            apply_each=rule_data.get('apply_each', False),
+                            priority=rule_data.get('priority', 0)
+                        ))
+
+        # 按优先级和协同效率排序
+        expanded_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
+
+        if self.debug:
+            print(f"DEBUG: 加载并解析新结构效率规则，总计 {len(expanded_rules)} 条")
+            # 打印巫恋组相关的规则
+            wulian_rules = [r for r in expanded_rules if "巫恋" in r.description or "巫恋" in str(r.operators)]
+            print(f"DEBUG: 巫恋组规则数量: {len(wulian_rules)}")
+            for rule in wulian_rules:
+                print(
+                    f"DEBUG: 巫恋规则: {rule.description} -> 干员: {rule.operators}, 效率: {rule.synergy_efficiency}%")
+
+        return expanded_rules
+
+    def load_workplaces(self) -> Dict[str, List[Workplace]]:
+        """加载工作站配置"""
+        workplaces = {
+            'trading_stations': [],
+            'manufacturing_stations': []
+        }
+
+        for station_data in self.efficiency_data['workplaces']['trading_stations']:
+            workplaces['trading_stations'].append(Workplace(
+                id=station_data['id'],
+                name=station_data['name'],
+                max_operators=station_data['max_operators'],
+                base_efficiency=station_data['base_efficiency']
+            ))
+
+        for station_data in self.efficiency_data['workplaces']['manufacturing_stations']:
+            workplaces['manufacturing_stations'].append(Workplace(
+                id=station_data['id'],
+                name=station_data['name'],
+                max_operators=station_data['max_operators'],
+                base_efficiency=station_data['base_efficiency']
+            ))
+
+        return workplaces
+
+    def get_available_operators(self) -> List[Operator]:
+        """获取可用的干员列表（拥有的干员）"""
+        return [op for op in self.operators.values() if op.own]
+
+    def check_elite_requirements(self, operators: List[Operator], elite_requirements: Dict[str, int]) -> bool:
+        """检查干员是否满足精英化要求"""
+        operator_dict = {op.name: op for op in operators}
+
+        for op_name, required_elite in elite_requirements.items():
+            if op_name in operator_dict:
+                if operator_dict[op_name].elite < required_elite:
+                    return False
+        return True
+
+    def check_control_center_requirements(self, control_center_reqs: List[ControlCenterRequirement]) -> bool:
+        """检查中枢需求是否满足：动态判断干员是否拥有且精英等级满足"""
+        for req in control_center_reqs:
+            if req.operator not in self.operators:
+                return False
+            op = self.operators[req.operator]
+            if not op.own or op.elite < req.elite_required:
+                return False
+        return True
+
+    def get_workplace_type(self, workplace: Workplace) -> str:
+        """获取工作站类型"""
+        if 'trading' in workplace.id:
+            return 'trading_station'
+        elif 'manufacturing' in workplace.id:
+            return 'manufacturing_station'
+        else:
+            return workplace.id.split('_')[0] + '_station'
+
+    def calculate_combination_efficiency(self, operators: List[Operator], workplace_type: str) -> tuple[
+        float, List[str], List[ControlCenterRequirement]]:
+        """计算干员组合的效率和应用的组合"""
+        total_efficiency = 0
+        applied_combinations = []
+        applied_control_center_reqs = []
+        used_operator_names = [op.name for op in operators]
+
+        if self.debug:
+            print(f"DEBUG: 计算组合效率 -> 工作站类型: {workplace_type}, 干员: {used_operator_names}")
+
+        # 检查所有可能的组合
+        for rule in self.efficiency_rules:
+            if rule.workplace_type != workplace_type:
+                continue
+
+            # 检查是否满足组合条件
+            if all(op_name in used_operator_names for op_name in rule.operators):
+                # 检查精英化要求
+                if not self.check_elite_requirements(operators, rule.elite_requirements):
+                    if self.debug:
+                        print(f"DEBUG: 精英化不满足，跳过规则: {rule.description}")
+                    continue
+
+                # 检查中枢需求
+                if not self.check_control_center_requirements(rule.requires_control_center):
+                    if self.debug:
+                        cc = ','.join([f"{r.operator}(精{r.elite_required})" for r in rule.requires_control_center])
+                        print(f"DEBUG: 中枢需求不满足({cc})，跳过规则: {rule.description}")
+                    continue
+
+                # 所有条件满足，应用该组合
+                total_efficiency += rule.synergy_efficiency
+                applied_combinations.append(rule.description)
+                applied_control_center_reqs.extend(rule.requires_control_center)
+                if self.debug:
+                    print(f"DEBUG: 生效规则: {rule.description} -> +{rule.synergy_efficiency}%")
+
+        # 如果没有组合效果，计算个体效率
+        if total_efficiency == 0:
+            for op in operators:
+                # 这里可以添加个体效率计算逻辑
+                individual_eff = 0  # 从individual_efficiencies获取
+                total_efficiency += individual_eff
+
+        if self.debug:
+            print(f"DEBUG: 组合最终效率: {total_efficiency}% (只计算干员贡献，不含基地基础)")
+
+        return total_efficiency, applied_combinations, applied_control_center_reqs
+
+    def optimize_workplace(self, workplace: Workplace, operator_usage: Dict[str, int], shift_used_names: set) -> AssignmentResult:
+        """优化单个工作站的干员配置（体系优先 + 通用替补），考虑全局干员使用限制和班次内重复限制。
+
+        每个干员一天最多分配到两个班次，且同一班内不能重复分配到多个设施。
+        """
+        available_ops = self.get_available_operators()
+        op_by_name = {op.name: op for op in available_ops}
+        workplace_type = self.get_workplace_type(workplace)
+
+        if self.debug:
+            print(
+                f"DEBUG: 开始优化站点 {workplace.name} ({workplace.id})，可用干员: list(op_by_name.keys())，站点可放: {workplace.max_operators}")
+
+        remaining_slots = workplace.max_operators
+        assigned_ops: List[Operator] = []
+        used_names = set()
+        total_synergy = 0.0
+        applied_combinations: List[str] = []
+        applied_control_center_reqs: List[ControlCenterRequirement] = []
+
+        # 分组规则：特定体系 vs 通用（通用组合 + 通用单人）
+        specific_systems = ['巫恋组', '但书体系', '孑体系']  # 可根据JSON扩展
+        general_systems = ['通用组合', '通用单人']
+
+        # 1. 先处理特定体系（按优先级排序）
+        for system_name in specific_systems:
+            if remaining_slots <= 0:
+                break
+            system_rules = [r for r in self.efficiency_rules if
+                            r.workplace_type == workplace_type and system_name in r.description]
+            system_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
+
+            if self.debug and system_name == "巫恋组":
+                print(f"DEBUG: 检查巫恋组规则，找到 {len(system_rules)} 条规则")
+                for i, rule in enumerate(system_rules):
+                    print(
+                        f"DEBUG: 巫恋组规则[{i}]: {rule.description}, 优先级: {rule.priority}, 效率: {rule.synergy_efficiency}%")
+
+            for rule in system_rules:
+                if remaining_slots <= 0:
+                    break
+
+                required = rule.operators
+                if self.debug and system_name == "巫恋组":
+                    print(f"DEBUG: 检查巫恋组规则: {rule.description}")
+                    print(f"DEBUG:  需要干员: {required}")
+                    print(f"DEBUG:  已用干员(本站): {used_names}")
+                    print(f"DEBUG:  已用干员(本班): {shift_used_names}")
+                    print(f"DEBUG:  干员使用次数: {[f'{op}:{operator_usage.get(op, 0)}' for op in required]}")
+
+                # 检查干员可用性
+                unavailable_ops = []
+                for op_name in required:
+                    if (op_name not in op_by_name or
+                            op_name in used_names or
+                            op_name in shift_used_names or
+                            operator_usage.get(op_name, 0) >= 2):
+                        unavailable_ops.append(op_name)
+
+                if unavailable_ops:
+                    if self.debug and system_name == "巫恋组":
+                        print(f"DEBUG:  干员不可用: {unavailable_ops}")
+                    continue
+
+                if len(required) > remaining_slots:
+                    if self.debug and system_name == "巫恋组":
+                        print(f"DEBUG:  所需槽位({len(required)}) > 剩余槽位({remaining_slots})")
+                    continue
+
+                op_objs = [op_by_name[op_name] for op_name in required]
+                if not self.check_elite_requirements(op_objs, rule.elite_requirements):
+                    if self.debug and system_name == "巫恋组":
+                        print(f"DEBUG:  精英要求不满足: {rule.elite_requirements}")
+                    continue
+
+                if not self.check_control_center_requirements(rule.requires_control_center):
+                    if self.debug and system_name == "巫恋组":
+                        cc_reqs = [f"{r.operator}(精{r.elite_required})" for r in rule.requires_control_center]
+                        print(f"DEBUG:  中枢需求不满足: {cc_reqs}")
+                    continue
+
+                # 分配
+                for op_name in required:
+                    assigned_ops.append(op_by_name[op_name])
+                    used_names.add(op_name)
+                    shift_used_names.add(op_name)
+                    operator_usage[op_name] += 1
+                remaining_slots -= len(required)
+                total_synergy += rule.synergy_efficiency
+                applied_combinations.append(rule.description)
+                applied_control_center_reqs.extend(rule.requires_control_center)
+                if self.debug:
+                    print(f"DEBUG: 分配体系规则: {rule.description} -> +{rule.synergy_efficiency}%")
+
+        # 2. 通用组合作为替补（包括apply_each）
+        general_rules = [r for r in self.efficiency_rules if
+                         r.workplace_type == workplace_type and any(
+                             sys in r.description for sys in general_systems)]
+        general_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
+
+        # 用于合并apply_each规则的分配干员
+        apply_each_assignments = {}
+
+        for rule in general_rules:
+            if remaining_slots <= 0:
+                break
+            if rule.apply_each:
+                assigned_for_rule = []
+                for op_name in rule.operators:
+                    if remaining_slots <= 0 or op_name in used_names or op_name in shift_used_names or op_name not in op_by_name or operator_usage.get(
+                            op_name, 0) >= 2:
+                        continue
+                    op_obj = op_by_name[op_name]
+                    req_elite = {op_name: rule.elite_requirements.get(op_name, 0)}
+                    if not self.check_elite_requirements([op_obj],
+                                                         req_elite) or not self.check_control_center_requirements(
+                        rule.requires_control_center):
+                        continue
+                    assigned_ops.append(op_obj)
+                    used_names.add(op_name)
+                    shift_used_names.add(op_name)
+                    operator_usage[op_name] += 1
+                    remaining_slots -= 1
+                    total_synergy += rule.synergy_efficiency
+                    assigned_for_rule.append(op_name)
+                    applied_control_center_reqs.extend(rule.requires_control_center)
+                    if self.debug:
+                        print(
+                            f"DEBUG: 替补单体: {rule.description} 对 {op_name} -> +{rule.synergy_efficiency}%")
+                if assigned_for_rule:
+                    apply_each_assignments[rule.description] = assigned_for_rule
+            else:
+                required = rule.operators
+                if any(op_name not in op_by_name or op_name in used_names or op_name in shift_used_names or operator_usage.get(op_name, 0) >= 2 for op_name in required) or len(
+                        required) > remaining_slots:
+                    continue
+                op_objs = [op_by_name[op_name] for op_name in required]
+                if not self.check_elite_requirements(op_objs,
+                                                     rule.elite_requirements) or not self.check_control_center_requirements(
+                        rule.requires_control_center):
+                    continue
+                for op_name in required:
+                    assigned_ops.append(op_by_name[op_name])
+                    used_names.add(op_name)
+                    shift_used_names.add(op_name)
+                    operator_usage[op_name] += 1
+                remaining_slots -= len(required)
+                total_synergy += rule.synergy_efficiency
+                applied_combinations.append(rule.description)
+                applied_control_center_reqs.extend(rule.requires_control_center)
+                if self.debug:
+                    print(f"DEBUG: 替补组合: {rule.description} -> +{rule.synergy_efficiency}%")
+
+        # 合并apply_each的生效组合
+        for desc, ops in apply_each_assignments.items():
+            applied_combinations.append(f"{desc}({', '.join(ops)})")
+
+        # 返回结果（其余不变）
+        if self.debug:
+            names = ','.join([op.name for op in assigned_ops])
+            print(f"DEBUG: 完成分配 {workplace.name}，分配: {names}，总干员增益: {total_synergy}%")
+
+        return AssignmentResult(
+            workplace=workplace,
+            optimal_operators=assigned_ops,
+            total_efficiency=workplace.base_efficiency + total_synergy,
+            operator_efficiency=total_synergy,
+            applied_combinations=applied_combinations,
+            control_center_requirements=applied_control_center_reqs
+        )
+
+    def get_optimal_assignments(self) -> Dict[str, Any]:
+        """获取所有工作站的最优分配方案，考虑三班制和干员班次限制（最多两班）"""
+        results = {
+            "shifts": [],
+            "summary": {
+                "total_efficiency": 0,
+                "assigned_operators": set(),
+                "available_operators_count": len(self.get_available_operators()),
+                "control_center_requirements": set()
+            }
+        }
+
+        # 全局跟踪干员使用次数（最多2班）
+        operator_usage = {op.name: 0 for op in self.get_available_operators()}
+
+        for shift in range(3):  # 3班
+            shift_results = {
+                "shift": shift + 1,
+                "trading_stations": [],
+                "manufacturing_stations": []
+            }
+            # 班次内干员使用跟踪，防止同一班重复分配
+            shift_used_names = set()
+
+            # 优化贸易站
+            for workplace in self.workplaces['trading_stations']:
+                if self.debug:
+                    print(f"DEBUG: 第{shift+1}班 - 开始处理贸易站 {workplace.name} ({workplace.id})")
+                result = self.optimize_workplace(workplace, operator_usage, shift_used_names)
+                serialized_result = self.serialize_assignment_result(result)
+                shift_results["trading_stations"].append(serialized_result)
+                results["summary"]["total_efficiency"] += result.total_efficiency
+                results["summary"]["assigned_operators"].update(op.name for op in result.optimal_operators)
+
+                # 收集中枢需求
+                for req in result.control_center_requirements:
+                    results["summary"]["control_center_requirements"].add(f"{req.operator}(精{req.elite_required})")
+
+            # 优化制造站
+            for workplace in self.workplaces['manufacturing_stations']:
+                if self.debug:
+                    print(f"DEBUG: 第{shift+1}班 - 开始处理制造站 {workplace.name} ({workplace.id})")
+                result = self.optimize_workplace(workplace, operator_usage, shift_used_names)
+                serialized_result = self.serialize_assignment_result(result)
+                shift_results["manufacturing_stations"].append(serialized_result)
+                results["summary"]["total_efficiency"] += result.total_efficiency
+                results["summary"]["assigned_operators"].update(op.name for op in result.optimal_operators)
+
+                # 收集中枢需求
+                for req in result.control_center_requirements:
+                    results["summary"]["control_center_requirements"].add(f"{req.operator}(精{req.elite_required})")
+
+            results["shifts"].append(shift_results)
+
+        results["summary"]["assigned_operators"] = list(results["summary"]["assigned_operators"])
+        results["summary"]["control_center_requirements"] = list(results["summary"]["control_center_requirements"])
+
+        if self.debug:
+            print(f"DEBUG: 完成所有班次优化，总共分配干员数: {len(results['summary']['assigned_operators'])}")
+
+        return results
+
+    def serialize_assignment_result(self, result: AssignmentResult) -> Dict[str, Any]:
+        """序列化分配结果"""
+        return {
+            "workplace_id": result.workplace.id,
+            "workplace_name": result.workplace.name,
+            "optimal_operators": [
+                {
+                    "name": op.name,
+                    "elite": op.elite,
+                    "level": op.level
+                }
+                for op in result.optimal_operators
+            ],
+            "total_efficiency": round(result.total_efficiency, 1),
+            "operator_efficiency": round(result.operator_efficiency, 1),
+            "applied_combinations": result.applied_combinations,
+            "control_center_requirements": [
+                {
+                    "operator": req.operator,
+                    "elite_required": req.elite_required
+                }
+                for req in result.control_center_requirements
+            ]
+        }
+
+    def display_optimal_assignments(self):
+        """显示最优分配方案（三班制）"""
+        assignments = self.get_optimal_assignments()
+
+        print("=== 最优工作站分配方案（三班制）===")
+        print(f"总效率: {assignments['summary']['total_efficiency']:.1f}%")
+        print(f"可用干员数: {assignments['summary']['available_operators_count']}")
+        print(f"已分配干员: {', '.join(assignments['summary']['assigned_operators'])}")
+
+        if assignments['summary']['control_center_requirements']:
+            print(f"中枢需求: {', '.join(assignments['summary']['control_center_requirements'])}")
+        print()
+
+        for shift_data in assignments['shifts']:
+            shift = shift_data['shift']
+            print(f"第{shift}班 (0-{8 * shift}小时):")
+
+            print("  贸易站分配:")
+            for station in shift_data['trading_stations']:
+                print(f"    {station['workplace_name']} ({station['workplace_id']}):")
+                op_names = [f"{op['name']}(精{op['elite']}{op['level']}级)" for op in station['optimal_operators']]
+                print(f"      干员: {', '.join(op_names)}")
+                print(f"      效率: {station['total_efficiency']}% (基础100% + 干员{station['operator_efficiency']}%)")
+                if station['applied_combinations']:
+                    print(f"      生效组合: {', '.join(station['applied_combinations'])}")
+                if station['control_center_requirements']:
+                    reqs = [f"{req['operator']}(精{req['elite_required']})" for req in
+                            station['control_center_requirements']]
+                    print(f"      中枢需求: {', '.join(reqs)}")
+                print()
+
+            # print("  制造站分配:")
+            # for station in shift_data['manufacturing_stations']:
+            #     print(f"    {station['workplace_name']} ({station['workplace_id']}):")
+            #     op_names = [f"{op['name']}(精{op['elite']}{op['level']}级)" for op in station['optimal_operators']]
+            #     print(f"      干员: {', '.join(op_names)}")
+            #     print(f"      效率: {station['total_efficiency']}% (基础100% + 干员{station['operator_efficiency']}%)")
+            #     if station['applied_combinations']:
+            #         print(f"      生效组合: {', '.join(station['applied_combinations'])}")
+            #     if station['control_center_requirements']:
+            #         reqs = [f"{req['operator']}(精{req['elite_required']})" for req in
+            #                 station['control_center_requirements']]
+            #         print(f"      中枢需求: {', '.join(reqs)}")
+            #     print()
+
+    # 新增调试打印函数
+    def print_loaded_files(self):
+        print(f"DEBUG: 已加载的效率文件: {self.efficiency_file}")
+        print(f"DEBUG: 已加载的干员文件: {self.operator_file}")
+
+    def print_operator_summary(self):
+        owned = [op for op in self.operators.values() if op.own]
+        print(f"DEBUG: 干员总数: {len(self.operators)}，已拥有: {len(owned)}")
+        if owned:
+            sample = ', '.join([f"{op.name}(精{op.elite})" for op in owned[:20]])
+            print(f"DEBUG: 已拥有干员示例（最多20）: {sample}")
+
+    def print_efficiency_rules(self, limit: int = 10):
+        print(f"DEBUG: 效率规则总数: {len(self.efficiency_rules)}，显示前 {limit} 项")
+        for i, rule in enumerate(self.efficiency_rules[:limit]):
+            cc = ','.join([f"{r.operator}(精{r.elite_required})" for r in rule.requires_control_center])
+            print(f"  [{i+1}] {rule.description} | 类型: {rule.workplace_type} | 干员: {', '.join(rule.operators)} | 协同: {rule.synergy_efficiency}% | 中枢: {cc} | 精英要求: {rule.elite_requirements}")
+
+    def print_workplaces(self):
+        ts = self.workplaces.get('trading_stations', [])
+        ms = self.workplaces.get('manufacturing_stations', [])
+        print(f"DEBUG: 贸易站数量: {len(ts)}，制造站数量: {len(ms)}")
+        for w in ts + ms:
+            print(f"  - {w.id} {w.name} | 最大干员: {w.max_operators} | 基础效率: {w.base_efficiency}%")
+
+# 使用示例
+# 在 main 函数中添加检查
+if __name__ == "__main__":
+    optimizer = WorkplaceOptimizer('efficiency.json', 'operators.json', debug=True)
+
+    # 检查巫恋组规则是否被正确加载
+    wulian_rules = [r for r in optimizer.efficiency_rules if "巫恋" in r.description]
+    print(f"巫恋组规则数量: {len(wulian_rules)}")
+    for rule in wulian_rules:
+        print(f"规则: {rule.description}, 干员: {rule.operators}, 效率: {rule.synergy_efficiency}%")
+
+    # 检查所需干员是否可用
+    required_ops = set()
+    for rule in wulian_rules:
+        required_ops.update(rule.operators)
+
+    print("巫恋组所需干员:")
+    for op_name in required_ops:
+        if op_name in optimizer.operators:
+            op = optimizer.operators[op_name]
+            status = "可用" if op.own else "不可用(未拥有)"
+            print(f"  {op_name}: {status}, 精英{op.elite}")
+        else:
+            print(f"  {op_name}: 不在干员列表中")
+
+    optimizer.display_optimal_assignments()
+
+    # 获取最优分配的JSON格式
+    optimal_assignments = optimizer.get_optimal_assignments()
+
+    # 保存最优分配结果
+    with open('optimal_assignments.json', 'w', encoding='utf-8') as f:
+        json.dump(optimal_assignments, f, ensure_ascii=False, indent=2)
+
+    print("最优分配方案已保存到 optimal_assignments.json")
