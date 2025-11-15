@@ -145,12 +145,14 @@ class WorkplaceOptimizer:
                                     operator=cc_name, elite_required=cc_elite
                                 ))
 
+                        # 使用系统名称作为描述，而不是note字段
+                        description = f"{system_name} - {', '.join(operators)}"
                         expanded_rules.append(OperatorEfficiency(
                             operators=operators,
                             workplace_type=workplace_type,
                             base_efficiency=0,
                             synergy_efficiency=rule_data['efficiency'],
-                            description=rule_data.get('note', f"{system_name} - {', '.join(operators)}"),
+                            description=description,
                             elite_requirements=elite_requirements,
                             requires_control_center=control_center_reqs,
                             special_conditions=None,
@@ -201,12 +203,14 @@ class WorkplaceOptimizer:
                                     operator=cc_name, elite_required=cc_elite
                                 ))
 
+                        # 使用系统名称和干员列表作为描述
+                        description = f"{system_name} - {', '.join(all_operators)}"
                         expanded_rules.append(OperatorEfficiency(
                             operators=all_operators,
                             workplace_type=workplace_type,
                             base_efficiency=0,
                             synergy_efficiency=rule_data['efficiency'],
-                            description=rule_data.get('note', f"{system_name} - {', '.join(all_operators)}"),
+                            description=description,
                             elite_requirements=all_elite_requirements,
                             requires_control_center=control_center_reqs,
                             special_conditions=None,
@@ -341,7 +345,7 @@ class WorkplaceOptimizer:
 
         if self.debug:
             print(
-                f"DEBUG: 开始优化站点 {workplace.name} ({workplace.id})，可用干员: list(op_by_name.keys())，站点可放: {workplace.max_operators}")
+                f"DEBUG: 开始优化站点 {workplace.name} ({workplace.id})，站点可放: {workplace.max_operators}")
 
         remaining_slots = workplace.max_operators
         assigned_ops: List[Operator] = []
@@ -362,12 +366,13 @@ class WorkplaceOptimizer:
                             r.workplace_type == workplace_type and system_name in r.description]
             system_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
 
-
             for rule in system_rules:
                 if remaining_slots <= 0:
                     break
 
                 required = rule.operators
+                if self.debug:
+                    print(f"DEBUG: 检查体系规则: {rule.description}")
 
                 # 检查干员可用性
                 unavailable_ops = []
@@ -379,16 +384,25 @@ class WorkplaceOptimizer:
                         unavailable_ops.append(op_name)
 
                 if unavailable_ops:
+                    if self.debug:
+                        print(f"DEBUG:  干员不可用: {unavailable_ops}")
                     continue
 
                 if len(required) > remaining_slots:
+                    if self.debug:
+                        print(f"DEBUG:  所需槽位({len(required)}) > 剩余槽位({remaining_slots})")
                     continue
 
                 op_objs = [op_by_name[op_name] for op_name in required]
                 if not self.check_elite_requirements(op_objs, rule.elite_requirements):
+                    if self.debug:
+                        print(f"DEBUG:  精英要求不满足: {rule.elite_requirements}")
                     continue
 
                 if not self.check_control_center_requirements(rule.requires_control_center):
+                    if self.debug:
+                        cc_reqs = [f"{r.operator}(精{r.elite_required})" for r in rule.requires_control_center]
+                        print(f"DEBUG:  中枢需求不满足: {cc_reqs}")
                     continue
 
                 # 分配
@@ -639,30 +653,8 @@ class WorkplaceOptimizer:
             print(f"  - {w.id} {w.name} | 最大干员: {w.max_operators} | 基础效率: {w.base_efficiency}%")
 
 # 使用示例
-# 在 main 函数中添加检查
 if __name__ == "__main__":
     optimizer = WorkplaceOptimizer('efficiency.json', 'operators.json', debug=True)
-
-    # 检查巫恋组规则是否被正确加载
-    wulian_rules = [r for r in optimizer.efficiency_rules if "巫恋" in r.description]
-    print(f"巫恋组规则数量: {len(wulian_rules)}")
-    for rule in wulian_rules:
-        print(f"规则: {rule.description}, 干员: {rule.operators}, 效率: {rule.synergy_efficiency}%")
-
-    # 检查所需干员是否可用
-    required_ops = set()
-    for rule in wulian_rules:
-        required_ops.update(rule.operators)
-
-    print("巫恋组所需干员:")
-    for op_name in required_ops:
-        if op_name in optimizer.operators:
-            op = optimizer.operators[op_name]
-            status = "可用" if op.own else "不可用(未拥有)"
-            print(f"  {op_name}: {status}, 精英{op.elite}")
-        else:
-            print(f"  {op_name}: 不在干员列表中")
-
     optimizer.display_optimal_assignments()
 
     # 获取最优分配的JSON格式
