@@ -10,7 +10,8 @@
       { "id": "manufacturing_2", "name": "制造站2", "max_operators": 3, "base_efficiency": 100 },
       { "id": "manufacturing_3", "name": "制造站3", "max_operators": 3, "base_efficiency": 100 }
     ],
-    "control_center": { "id": "control_center", "name": "控制中枢", "max_operators": 5, "base_efficiency": 0 }
+    "control_center": { "id": "control_center", "name": "控制中枢", "max_operators": 5, "base_efficiency": 0 },
+    "meeting_room": {"id": "meeting", "name": "会客室", "max_operators": 2, "base_efficiency": 0}
   },
   "combination_rules": {
     "trading_station": {
@@ -209,6 +210,70 @@
         { "combo": ["雪雉/2"], "efficiency": 35, "priority": 45 },
         { "combo": ["石英/1"], "efficiency": 34, "priority": 44 },
         { "combo": ["月见夜", "古米", "夜刀", "空爆", "慕斯", "缠丸/1", "安比尔/1", "芬/1", "渡桥/2", "瑰盐/2", "新约能天使/2"], "efficiency": 30, "apply_each": true, "priority": 1 }
+      ]
+    },
+    "meeting_room": {
+      "单人": [
+        {
+          "combo": ["见行者/2"],
+          "efficiency": 60
+        },
+        {
+          "combo": ["跃跃/2"],
+          "efficiency": 63,
+          "note": "开趴"
+        },
+        {
+          "combo": ["信仰搅拌机/2"],
+          "efficiency": 56
+        },
+        {
+          "combo": ["伊内丝/2"],
+          "efficiency": 56
+        },
+        {
+          "combo": ["莱欧斯/2"],
+          "dormitory": ["森西/2"],
+          "efficiency": 51,
+          "note": "47-55%，需宿舍有森西"
+        },
+        {
+          "combo": ["红/2"],
+          "efficiency": 50
+        },
+        {
+          "combo": ["星极/2"],
+          "efficiency": 50
+        },
+        {
+          "combo": ["远山/2"],
+          "efficiency": 49
+        },
+        {
+          "combo": ["晓歌/2"],
+          "efficiency": 35,
+          "note": "未拥有线索的概率提升"
+        },
+        {
+          "combo": ["谜图/2"],
+          "efficiency": 35,
+          "note": "未拥有线索的概率提升"
+        }
+      ],
+      "组合": [
+        {
+          "combo": ["忍冬/2", "铃兰/2"],
+          "efficiency": 102
+        },
+        {
+          "combo": ["伺夜/2", "陈/2"],
+          "efficiency": 102
+        },
+        {
+          "combo": ["提丰/2", "凛视/2"],
+          "efficiency": 91,
+          "note": "未拥有线索的概率提升"
+        }
       ]
     }
   }

@@ -238,10 +238,10 @@ class WorkplaceOptimizer:
         return expanded_rules
 
     def load_workplaces(self) -> Dict[str, List[Workplace]]:
-        """加载工作站配置"""
         workplaces = {
             'trading_stations': [],
-            'manufacturing_stations': []
+            'manufacturing_stations': [],
+            'meeting_room': []
         }
 
         for station_data in self.efficiency_data['workplaces']['trading_stations']:
@@ -259,6 +259,15 @@ class WorkplaceOptimizer:
                 max_operators=station_data['max_operators'],
                 base_efficiency=station_data['base_efficiency']
             ))
+
+        # 添加会客室
+        meeting_data = self.efficiency_data['workplaces']['meeting_room']
+        workplaces['meeting_room'].append(Workplace(
+            id=meeting_data['id'],
+            name=meeting_data['name'],
+            max_operators=meeting_data['max_operators'],
+            base_efficiency=meeting_data['base_efficiency']
+        ))
 
         return workplaces
 
@@ -297,13 +306,14 @@ class WorkplaceOptimizer:
         return True
 
     def get_workplace_type(self, workplace: Workplace) -> str:
-        """获取工作站类型"""
         if 'trading' in workplace.id:
             return 'trading_station'
         elif 'manufacturing' in workplace.id:
             return 'manufacturing_station'
+        elif 'meeting' in workplace.id:
+            return 'meeting_room'
         else:
-            return workplace.id.split('_')[0] + '_station'
+            return workplace.id.split('_')[0] + '_station'[0] + '_station'
 
     def calculate_combination_efficiency(self, operators: List[Operator], workplace_type: str) -> tuple[
         float, List[str], List[ControlCenterRequirement]]:
@@ -370,6 +380,11 @@ class WorkplaceOptimizer:
         available_ops = self.get_available_operators()
         op_by_name = {op.name: op for op in available_ops}
         workplace_type = self.get_workplace_type(workplace)
+        systems = self.efficiency_data['combination_rules'].get(workplace_type, {})
+
+        # 动态获取 specific_systems（dict 类型）和 general_systems（list 类型）
+        specific_systems = [k for k, v in systems.items() if isinstance(v, dict)]
+        general_systems = [k for k, v in systems.items() if isinstance(v, list)]
 
         if self.debug:
             print(
@@ -383,9 +398,6 @@ class WorkplaceOptimizer:
         applied_control_center_reqs: List[ControlCenterRequirement] = []
         applied_dormitory_reqs: List[DormitoryRequirement] = []  # 新增
 
-        # 分组规则：特定体系 vs 通用（通用组合 + 通用单人）
-        specific_systems = ['巫恋组', '但书体系', '孑体系']  # 可根据JSON扩展
-        general_systems = ['通用组合', '通用单人']
 
         # 1. 先处理特定体系（按优先级排序）
         for system_name in specific_systems:
@@ -621,6 +633,13 @@ class WorkplaceOptimizer:
                     "autofill": False
                 }
 
+            # 优化会客室
+            result = self.optimize_workplace(self.workplaces['meeting_room'][0], operator_usage, shift_used_names)
+            plan["rooms"]["meeting"][0] = {
+                "operators": [op.name for op in result.optimal_operators],
+                "autofill": False if result.optimal_operators else True
+            }
+
             results["plans"].append(plan)
 
         return results
@@ -708,7 +727,7 @@ class WorkplaceOptimizer:
                 else:
                     print("    自动填充")
 
-            print("  会议室:")
+            print("  会客室:")
             for room in plan['rooms']['meeting']:
                 if room.get('operators'):
                     print(f"    干员: {', '.join(room['operators'])}, 自动填充: {room.get('autofill', False)}")
