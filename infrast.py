@@ -219,12 +219,6 @@ class WorkplaceOptimizer:
 
         if self.debug:
             print(f"DEBUG: 加载并解析新结构效率规则，总计 {len(expanded_rules)} 条")
-            # 打印巫恋组相关的规则
-            wulian_rules = [r for r in expanded_rules if "巫恋" in r.description or "巫恋" in str(r.operators)]
-            print(f"DEBUG: 巫恋组规则数量: {len(wulian_rules)}")
-            for rule in wulian_rules:
-                print(
-                    f"DEBUG: 巫恋规则: {rule.description} -> 干员: {rule.operators}, 效率: {rule.synergy_efficiency}%")
 
         return expanded_rules
 
@@ -357,45 +351,23 @@ class WorkplaceOptimizer:
         applied_control_center_reqs: List[ControlCenterRequirement] = []
 
         # 分组规则：特定体系 vs 通用（通用组合 + 通用单人）
-        specific_systems = {
-            '巫恋组': ['巫恋组', '裁缝b'],  # 巫恋组可能包含"裁缝b"等关键词
-            '但书体系': ['但书体系'],
-            '孑体系': ['孑体系']
-        }
+        specific_systems = ['巫恋组', '但书体系', '孑体系']  # 可根据JSON扩展
         general_systems = ['通用组合', '通用单人']
 
         # 1. 先处理特定体系（按优先级排序）
-        for system_name, keywords in specific_systems.items():
+        for system_name in specific_systems:
             if remaining_slots <= 0:
                 break
-
-            # 使用关键词匹配规则
-            system_rules = []
-            for r in self.efficiency_rules:
-                if r.workplace_type == workplace_type:
-                    # 检查规则描述是否包含任一关键词
-                    if any(keyword in r.description for keyword in keywords):
-                        system_rules.append(r)
-
+            system_rules = [r for r in self.efficiency_rules if
+                            r.workplace_type == workplace_type and system_name in r.description]
             system_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
 
-            if self.debug and system_name == "巫恋组":
-                print(f"DEBUG: 检查巫恋组规则，找到 {len(system_rules)} 条规则")
-                for i, rule in enumerate(system_rules):
-                    print(
-                        f"DEBUG: 巫恋组规则[{i}]: {rule.description}, 优先级: {rule.priority}, 效率: {rule.synergy_efficiency}%")
 
             for rule in system_rules:
                 if remaining_slots <= 0:
                     break
 
                 required = rule.operators
-                if self.debug and system_name == "巫恋组":
-                    print(f"DEBUG: 检查巫恋组规则: {rule.description}")
-                    print(f"DEBUG:  需要干员: {required}")
-                    print(f"DEBUG:  已用干员(本站): {used_names}")
-                    print(f"DEBUG:  已用干员(本班): {shift_used_names}")
-                    print(f"DEBUG:  干员使用次数: {[f'{op}:{operator_usage.get(op, 0)}' for op in required]}")
 
                 # 检查干员可用性
                 unavailable_ops = []
@@ -407,25 +379,16 @@ class WorkplaceOptimizer:
                         unavailable_ops.append(op_name)
 
                 if unavailable_ops:
-                    if self.debug and system_name == "巫恋组":
-                        print(f"DEBUG:  干员不可用: {unavailable_ops}")
                     continue
 
                 if len(required) > remaining_slots:
-                    if self.debug and system_name == "巫恋组":
-                        print(f"DEBUG:  所需槽位({len(required)}) > 剩余槽位({remaining_slots})")
                     continue
 
                 op_objs = [op_by_name[op_name] for op_name in required]
                 if not self.check_elite_requirements(op_objs, rule.elite_requirements):
-                    if self.debug and system_name == "巫恋组":
-                        print(f"DEBUG:  精英要求不满足: {rule.elite_requirements}")
                     continue
 
                 if not self.check_control_center_requirements(rule.requires_control_center):
-                    if self.debug and system_name == "巫恋组":
-                        cc_reqs = [f"{r.operator}(精{r.elite_required})" for r in rule.requires_control_center]
-                        print(f"DEBUG:  中枢需求不满足: {cc_reqs}")
                     continue
 
                 # 分配

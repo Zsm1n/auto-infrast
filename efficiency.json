@@ -20,25 +20,21 @@
         {
           "combo": ["柏喙/2"],
           "efficiency": 138,
-          "note": "裁缝b，138%贸+46%金",
           "priority": 999
         },
         {
           "combo": ["卡夫卡/2"],
           "efficiency": 138,
-          "note": "裁缝b，138%贸+46%金",
           "priority": 999
         },
         {
           "combo": ["明椒/2"],
           "efficiency": 138,
-          "note": "裁缝b，138%贸+46%金",
           "priority": 999
         },
         {
           "combo": ["折光/2"],
           "efficiency": 138,
-          "note": "裁缝b，138%贸+46%金",
           "priority": 999
         }
       ]},
@@ -60,7 +56,7 @@
         {
           "combo": ["黑键/2", "乌有/2"],
           "efficiency": 219,
-          "note": "黑键乌有混用满挂件",
+          "note": "（需要研究）黑键乌有混用满挂件",
           "priority": 130
         },
         {
@@ -105,41 +101,6 @@
       "孑体系": {
         "base_combo": ["孑/1"],
         "rules": [
-        {
-          "combo": ["德克萨斯", "拉普兰德/2"],
-          "efficiency": 81,
-          "note": "孑0效率递减",
-          "priority": -1
-        },
-        {
-          "combo": ["琳琅诗怀雅/2"],
-          "control_center": ["灵知/2"],
-          "efficiency": 60,
-          "note": "孑0效率递减",
-          "priority": -1
-        },
-        {
-          "combo": ["锏/2"],
-          "control_center": ["灵知/2"],
-          "efficiency": 60,
-          "note": "孑0效率递减",
-          "priority": -1
-        },
-        {
-          "combo": ["银灰/2"],
-          "control_center": ["灵知/2"],
-          "efficiency": 45,
-          "note": "孑0效率递减",
-          "priority": -1
-        },
-        {
-          "combo": ["崖心/2"],
-          "control_center": ["灵知/2"],
-          "efficiency": 40,
-          "note": "孑0效率递减",
-          "priority": -1
-        },
-
         {
           "combo": ["银灰/2"],
           "control_center": ["灵知/2"],
@@ -238,8 +199,8 @@
         { "combo": ["乌有/2"], "efficiency": 95, "note": "20%-95%", "priority": 50 },
         { "combo": ["黑键/2"], "efficiency": 47, "note": "32%-47%", "priority": 49 },
         { "combo": ["泰拉大陆调查团"], "efficiency": 41, "note": "较麻烦，不考虑", "priority": -1 },
-        { "combo": ["伺夜/2"], "efficiency": 40, "note": "需会客室满级", "priority": 47 },
-        { "combo": ["空弦/2"], "efficiency": 40, "note": "需宿舍满级", "priority": 47 },
+        { "combo": ["伺夜/2"], "efficiency": 40, "priority": 47 },
+        { "combo": ["空弦/2"], "efficiency": 40, "priority": 47 },
         { "combo": ["深巡/2"], "efficiency": 40, "note": "30%-40%", "priority": 46 },
         { "combo": ["赫德雷/2"], "efficiency": 40, "note": "30%-40%", "priority": 46 },
         { "combo": ["能天使/2"], "efficiency": 35, "priority": 45 },
