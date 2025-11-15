@@ -204,7 +204,7 @@
         { "combo": ["深巡/2"], "efficiency": 40, "note": "30%-40%", "priority": 46 },
         { "combo": ["赫德雷/2"], "efficiency": 40, "note": "30%-40%", "priority": 46 },
         { "combo": ["能天使/2"], "efficiency": 35, "priority": 45 },
-        { "combo": ["齐尔查克/2"], "efficiency": 35, "note": "31%-35%，需宿舍有森西", "priority": 45 },
+        { "combo": ["齐尔查克/2"], "dormitory": ["森西/2"], "efficiency": 35, "note": "31%-35%，需宿舍有森西", "priority": 45 },
         { "combo": ["海蒂/2"], "efficiency": 35, "priority": 45 },
         { "combo": ["雪雉/2"], "efficiency": 35, "priority": 45 },
         { "combo": ["石英/1"], "efficiency": 34, "priority": 44 },
