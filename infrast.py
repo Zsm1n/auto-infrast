@@ -426,17 +426,12 @@ class WorkplaceOptimizer:
         available_ops = self.get_available_operators()
         op_by_name = {op.name: op for op in available_ops}
         workplace_type = self.get_workplace_type(workplace)
-        systems = self.efficiency_data['combination_rules'].get(workplace_type, {})
 
         # 过滤规则：如果规则指定产物，则必须匹配当前产物；未指定则允许
         def rule_matches_products(rule: OperatorEfficiency) -> bool:
             if not rule.products:
                 return True
             return workplace.current_product in rule.products
-
-        # 动态获取 specific_systems（dict 类型）和 general_systems（list 类型）
-        specific_systems = [k for k, v in systems.items() if isinstance(v, dict)]
-        general_systems = [k for k, v in systems.items() if isinstance(v, list)]
 
         if self.debug:
             print(
@@ -449,24 +444,47 @@ class WorkplaceOptimizer:
         applied_combinations: List[str] = []
         applied_control_center_reqs: List[ControlCenterRequirement] = []
         applied_dormitory_reqs: List[DormitoryRequirement] = []
-        applied_power_station_reqs: List[PowerStationRequirement] = []  # 新增
+        applied_power_station_reqs: List[PowerStationRequirement] = []
 
-        # 1. 先处理特定体系（按优先级排序）
-        for system_name in specific_systems:
-            if remaining_slots <= 0:
-                break
-            system_rules = [r for r in self.efficiency_rules if
-                            r.workplace_type == workplace_type and system_name in r.description and rule_matches_products(
-                                r)]
-            system_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
+        # 收集所有可用的规则（包括特定体系和通用规则）
+        all_rules = [r for r in self.efficiency_rules if
+                     r.workplace_type == workplace_type and
+                     rule_matches_products(r)]
 
-            for rule in system_rules:
+        # 按体系分组
+        system_groups = {}
+        for rule in all_rules:
+            # 确定规则所属的体系
+            system_name = "通用"
+            for sys_key in self.efficiency_data['combination_rules'].get(workplace_type, {}):
+                if sys_key in rule.description:
+                    system_name = sys_key
+                    break
+
+            if system_name not in system_groups:
+                system_groups[system_name] = []
+            system_groups[system_name].append(rule)
+
+        # 在每个体系组内按权重排序
+        for system_name, rules in system_groups.items():
+            rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
+
+        # 评估所有可能的组合方案
+        best_candidate = None
+        best_efficiency = -1
+
+        # 评估特定体系组合
+        for system_name, rules in system_groups.items():
+            if system_name == "通用":
+                continue  # 通用规则单独处理
+
+            for rule in rules:
                 if remaining_slots <= 0:
                     break
 
                 required = rule.operators
                 if self.debug:
-                    print(f"DEBUG: 检查体系规则: {rule.description}")
+                    print(f"DEBUG: 评估体系规则: {rule.description}")
 
                 # 检查干员可用性
                 unavailable_ops = []
@@ -513,91 +531,122 @@ class WorkplaceOptimizer:
                         print(f"DEBUG: 发电站需求不满足({power_reqs})，跳过规则: {rule.description}")
                     continue
 
-                # 分配
-                for op_name in required:
-                    assigned_ops.append(op_by_name[op_name])
-                    used_names.add(op_name)
-                    shift_used_names.add(op_name)
-                    operator_usage[op_name] += 1
-                remaining_slots -= len(required)
-                total_synergy += rule.synergy_efficiency
-                applied_combinations.append(rule.description)
-                applied_control_center_reqs.extend(rule.requires_control_center)
-                applied_dormitory_reqs.extend(rule.requires_dormitory)
-                applied_power_station_reqs.extend(rule.requires_power_station)
-                if self.debug:
-                    print(f"DEBUG: 分配体系规则: {rule.description} -> +{rule.synergy_efficiency}%")
+                # 计算效率（人均效率）
+                efficiency_per_slot = rule.synergy_efficiency / len(required)
+                if efficiency_per_slot > best_efficiency:
+                    best_efficiency = efficiency_per_slot
+                    best_candidate = {
+                        'type': 'system',
+                        'rule': rule,
+                        'required': required,
+                        'efficiency': rule.synergy_efficiency,
+                        'slots_used': len(required)
+                    }
 
-        # 2. 通用组合作为替补（包括apply_each）
-        general_rules = [r for r in self.efficiency_rules if
-                         r.workplace_type == workplace_type and any(
-                             sys in r.description for sys in general_systems) and rule_matches_products(r)]
-        general_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
-
-        # 用于合并apply_each规则的分配干员
-        apply_each_assignments = {}
-
-        for rule in general_rules:
+        # 评估通用规则（包括apply_each）
+        generic_rules = system_groups.get("通用", [])
+        for rule in generic_rules:
             if remaining_slots <= 0:
                 break
+
             if rule.apply_each:
-                assigned_for_rule = []
+                # 对于apply_each规则，评估每个可用干员的效率
                 for op_name in rule.operators:
                     max_usage = 3 if op_name in self.fiammetta_targets and workplace_type == 'trading_station' else 2
-                    if remaining_slots <= 0 or op_name in used_names or op_name in shift_used_names or op_name not in op_by_name or operator_usage.get(
-                            op_name, 0) >= max_usage:
+                    if (remaining_slots <= 0 or
+                            op_name in used_names or
+                            op_name in shift_used_names or
+                            op_name not in op_by_name or
+                            operator_usage.get(op_name, 0) >= max_usage):
                         continue
+
                     op_obj = op_by_name[op_name]
                     req_elite = {op_name: rule.elite_requirements.get(op_name, 0)}
-                    if not self.check_elite_requirements([op_obj],
-                                                         req_elite) or not self.check_control_center_requirements(
-                        rule.requires_control_center):
+                    if (not self.check_elite_requirements([op_obj], req_elite) or
+                            not self.check_control_center_requirements(rule.requires_control_center)):
                         continue
-                    assigned_ops.append(op_obj)
-                    used_names.add(op_name)
-                    shift_used_names.add(op_name)
-                    operator_usage[op_name] += 1
-                    remaining_slots -= 1
-                    total_synergy += rule.synergy_efficiency
-                    assigned_for_rule.append(op_name)
-                    applied_control_center_reqs.extend(rule.requires_control_center)
-                    if self.debug:
-                        print(
-                            f"DEBUG: 分配通用单人: {op_name} -> +{rule.synergy_efficiency}%")
-                if assigned_for_rule:
-                    apply_each_assignments[rule.description] = assigned_for_rule
+
+                    efficiency_per_slot = rule.synergy_efficiency
+                    if efficiency_per_slot > best_efficiency:
+                        best_efficiency = efficiency_per_slot
+                        best_candidate = {
+                            'type': 'generic_each',
+                            'rule': rule,
+                            'required': [op_name],
+                            'efficiency': rule.synergy_efficiency,
+                            'slots_used': 1
+                        }
             else:
+                # 对于普通通用规则
                 required = rule.operators
                 max_usage_check = lambda \
                     op_name: 3 if op_name in self.fiammetta_targets and workplace_type == 'trading_station' else 2
-                if any(
-                        op_name not in op_by_name or op_name in used_names or op_name in shift_used_names or operator_usage.get(
-                            op_name, 0) >= max_usage_check(op_name) for op_name in required) or len(
-                    required) > remaining_slots:
+
+                if any(op_name not in op_by_name or
+                       op_name in used_names or
+                       op_name in shift_used_names or
+                       operator_usage.get(op_name, 0) >= max_usage_check(op_name)
+                       for op_name in required) or len(required) > remaining_slots:
                     continue
+
                 op_objs = [op_by_name[op_name] for op_name in required]
-                if not self.check_elite_requirements(op_objs,
-                                                     rule.elite_requirements) or not self.check_control_center_requirements(
-                    rule.requires_control_center):
+                if (not self.check_elite_requirements(op_objs, rule.elite_requirements) or
+                        not self.check_control_center_requirements(rule.requires_control_center)):
                     continue
-                for op_name in required:
-                    assigned_ops.append(op_by_name[op_name])
-                    used_names.add(op_name)
-                    shift_used_names.add(op_name)
-                    operator_usage[op_name] += 1
-                remaining_slots -= len(required)
-                total_synergy += rule.synergy_efficiency
+
+                efficiency_per_slot = rule.synergy_efficiency / len(required)
+                if efficiency_per_slot > best_efficiency:
+                    best_efficiency = efficiency_per_slot
+                    best_candidate = {
+                        'type': 'generic',
+                        'rule': rule,
+                        'required': required,
+                        'efficiency': rule.synergy_efficiency,
+                        'slots_used': len(required)
+                    }
+
+        # 应用最佳候选方案
+        if best_candidate and best_efficiency > 0:
+            rule = best_candidate['rule']
+            required = best_candidate['required']
+
+            for op_name in required:
+                assigned_ops.append(op_by_name[op_name])
+                used_names.add(op_name)
+                shift_used_names.add(op_name)
+                operator_usage[op_name] += 1
+
+            remaining_slots -= best_candidate['slots_used']
+            total_synergy += best_candidate['efficiency']
+
+            if best_candidate['type'] == 'generic_each':
+                applied_combinations.append(f"{rule.description}({', '.join(required)})")
+            else:
                 applied_combinations.append(rule.description)
-                applied_control_center_reqs.extend(rule.requires_control_center)
-                applied_power_station_reqs.extend(rule.requires_power_station)
-                if self.debug:
-                    print(f"DEBUG: 替补组合: {rule.description} -> +{rule.synergy_efficiency}%")
 
-        # 合并apply_each的生效组合
-        for desc, ops in apply_each_assignments.items():
-            applied_combinations.append(f"{desc}({', '.join(ops)})")
+            applied_control_center_reqs.extend(rule.requires_control_center)
+            applied_dormitory_reqs.extend(rule.requires_dormitory)
+            applied_power_station_reqs.extend(rule.requires_power_station)
 
-        # 返回结果（其余不变）
+            if self.debug:
+                print(f"DEBUG: 应用最佳规则: {rule.description} -> +{rule.synergy_efficiency}%")
+
+        # 递归处理剩余槽位
+        if remaining_slots > 0:
+            # 递归调用自身处理剩余槽位
+            recursive_result = self.optimize_workplace_recursive(
+                workplace, operator_usage, shift_used_names,
+                assigned_ops, used_names, remaining_slots
+            )
+
+            assigned_ops.extend(recursive_result['assigned_ops'])
+            total_synergy += recursive_result['total_synergy']
+            applied_combinations.extend(recursive_result['applied_combinations'])
+            applied_control_center_reqs.extend(recursive_result['applied_control_center_reqs'])
+            applied_dormitory_reqs.extend(recursive_result['applied_dormitory_reqs'])
+            applied_power_station_reqs.extend(recursive_result['applied_power_station_reqs'])
+
+        # 返回结果
         if self.debug:
             names = ','.join([op.name for op in assigned_ops])
             print(f"DEBUG: 完成分配 {workplace.name}，分配: {names}，总干员增益: {total_synergy}%")
@@ -610,8 +659,130 @@ class WorkplaceOptimizer:
             applied_combinations=applied_combinations,
             control_center_requirements=applied_control_center_reqs,
             dormitory_requirements=applied_dormitory_reqs,
-            power_station_requirements=applied_power_station_reqs  # 新增
+            power_station_requirements=applied_power_station_reqs
         )
+
+    def optimize_workplace_recursive(self, workplace: Workplace, operator_usage: Dict[str, int],
+                                     shift_used_names: set, assigned_ops: List[Operator],
+                                     used_names: set, remaining_slots: int) -> Dict[str, Any]:
+        """递归优化工作站的剩余槽位"""
+        available_ops = self.get_available_operators()
+        op_by_name = {op.name: op for op in available_ops}
+        workplace_type = self.get_workplace_type(workplace)
+
+        total_synergy = 0.0
+        applied_combinations = []
+        applied_control_center_reqs = []
+        applied_dormitory_reqs = []
+        applied_power_station_reqs = []
+
+        # 过滤规则：如果规则指定产物，则必须匹配当前产物；未指定则允许
+        def rule_matches_products(rule: OperatorEfficiency) -> bool:
+            if not rule.products:
+                return True
+            return workplace.current_product in rule.products
+
+        while remaining_slots > 0:
+            best_candidate = None
+            best_efficiency = -1
+
+            # 评估所有可用规则
+            all_rules = [r for r in self.efficiency_rules if
+                         r.workplace_type == workplace_type and
+                         rule_matches_products(r)]
+
+            for rule in all_rules:
+                if rule.apply_each:
+                    # 对于apply_each规则，评估每个可用干员
+                    for op_name in rule.operators:
+                        max_usage = 3 if op_name in self.fiammetta_targets and workplace_type == 'trading_station' else 2
+                        if (op_name in used_names or
+                                op_name in shift_used_names or
+                                op_name not in op_by_name or
+                                operator_usage.get(op_name, 0) >= max_usage):
+                            continue
+
+                        op_obj = op_by_name[op_name]
+                        req_elite = {op_name: rule.elite_requirements.get(op_name, 0)}
+                        if (not self.check_elite_requirements([op_obj], req_elite) or
+                                not self.check_control_center_requirements(rule.requires_control_center)):
+                            continue
+
+                        efficiency = rule.synergy_efficiency
+                        if efficiency > best_efficiency:
+                            best_efficiency = efficiency
+                            best_candidate = {
+                                'rule': rule,
+                                'required': [op_name],
+                                'efficiency': efficiency,
+                                'slots_used': 1,
+                                'type': 'each'
+                            }
+                else:
+                    # 对于普通规则
+                    required = rule.operators
+                    if len(required) > remaining_slots:
+                        continue
+
+                    max_usage_check = lambda \
+                        op_name: 3 if op_name in self.fiammetta_targets and workplace_type == 'trading_station' else 2
+                    if any(op_name in used_names or
+                           op_name in shift_used_names or
+                           op_name not in op_by_name or
+                           operator_usage.get(op_name, 0) >= max_usage_check(op_name)
+                           for op_name in required):
+                        continue
+
+                    op_objs = [op_by_name[op_name] for op_name in required]
+                    if (not self.check_elite_requirements(op_objs, rule.elite_requirements) or
+                            not self.check_control_center_requirements(rule.requires_control_center)):
+                        continue
+
+                    efficiency_per_slot = rule.synergy_efficiency / len(required)
+                    if efficiency_per_slot > best_efficiency:
+                        best_efficiency = efficiency_per_slot
+                        best_candidate = {
+                            'rule': rule,
+                            'required': required,
+                            'efficiency': rule.synergy_efficiency,
+                            'slots_used': len(required),
+                            'type': 'normal'
+                        }
+
+            # 应用最佳候选
+            if best_candidate and best_efficiency > 0:
+                rule = best_candidate['rule']
+                required = best_candidate['required']
+
+                for op_name in required:
+                    assigned_ops.append(op_by_name[op_name])
+                    used_names.add(op_name)
+                    shift_used_names.add(op_name)
+                    operator_usage[op_name] += 1
+
+                remaining_slots -= best_candidate['slots_used']
+                total_synergy += best_candidate['efficiency']
+
+                if best_candidate['type'] == 'each':
+                    applied_combinations.append(f"{rule.description}({', '.join(required)})")
+                else:
+                    applied_combinations.append(rule.description)
+
+                applied_control_center_reqs.extend(rule.requires_control_center)
+                applied_dormitory_reqs.extend(rule.requires_dormitory)
+                applied_power_station_reqs.extend(rule.requires_power_station)
+            else:
+                # 没有合适的规则，退出循环
+                break
+
+        return {
+            'assigned_ops': [],
+            'total_synergy': total_synergy,
+            'applied_combinations': applied_combinations,
+            'applied_control_center_reqs': applied_control_center_reqs,
+            'applied_dormitory_reqs': applied_dormitory_reqs,
+            'applied_power_station_reqs': applied_power_station_reqs
+        }
 
     def get_optimal_assignments(self, product_requirements: Dict[str, Dict[str, int]] = None) -> Dict[str, Any]:
         """获取最优分配方案，输出符合 MAA 协议的 JSON 格式"""
