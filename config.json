@@ -4,5 +4,8 @@
     "manufacturing_stations": {"Pure Gold": 2, "Originium Shard": 2}
   },
   "trading_stations_count": 2,
-  "manufacturing_stations_count": 4
+  "manufacturing_stations_count": 4,
+  "Fiammetta": {
+    "enable": true
+  }
 }

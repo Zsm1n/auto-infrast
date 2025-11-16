@@ -84,6 +84,7 @@ class WorkplaceOptimizer:
         self.operators = self.load_operators()
         self.efficiency_rules = self.load_efficiency_rules()
         self.workplaces = self.load_workplaces()
+        self.fiammetta_targets = []  # 修改：当前菲亚梅塔目标列表
 
         # 如果启用调试模式，打印加载信息和摘要
         if self.debug:
@@ -315,6 +316,13 @@ class WorkplaceOptimizer:
                 return False
         return True
 
+    def check_fiammetta_available(self) -> bool:
+        """检查菲亚梅塔是否可用（拥有且精二）"""
+        if '菲亚梅塔' not in self.operators:
+            return False
+        op = self.operators['菲亚梅塔']
+        return op.own and op.elite >= 2
+
     def get_workplace_type(self, workplace: Workplace) -> str:
         if 'trading' in workplace.id:
             return 'trading_station'
@@ -386,7 +394,7 @@ class WorkplaceOptimizer:
                            shift_used_names: set) -> AssignmentResult:
         """优化单个工作站的干员配置（体系优先 + 通用替补），考虑全局干员使用限制和班次内重复限制。
 
-        每个干员一天最多分配到两个班次，且同一班内不能重复分配到多个设施。
+        每个干员一天最多分配到两个班次，除菲亚梅塔目标可3班。
         """
         available_ops = self.get_available_operators()
         op_by_name = {op.name: op for op in available_ops}
@@ -435,10 +443,11 @@ class WorkplaceOptimizer:
                 # 检查干员可用性
                 unavailable_ops = []
                 for op_name in required:
+                    max_usage = 3 if op_name in self.fiammetta_targets and workplace_type == 'trading_station' else 2
                     if (op_name not in op_by_name or
                             op_name in used_names or
                             op_name in shift_used_names or
-                            operator_usage.get(op_name, 0) >= 2):
+                            operator_usage.get(op_name, 0) >= max_usage):
                         unavailable_ops.append(op_name)
 
                 if unavailable_ops:
@@ -499,8 +508,9 @@ class WorkplaceOptimizer:
             if rule.apply_each:
                 assigned_for_rule = []
                 for op_name in rule.operators:
+                    max_usage = 3 if op_name in self.fiammetta_targets and workplace_type == 'trading_station' else 2
                     if remaining_slots <= 0 or op_name in used_names or op_name in shift_used_names or op_name not in op_by_name or operator_usage.get(
-                            op_name, 0) >= 2:
+                            op_name, 0) >= max_usage:
                         continue
                     op_obj = op_by_name[op_name]
                     req_elite = {op_name: rule.elite_requirements.get(op_name, 0)}
@@ -518,15 +528,17 @@ class WorkplaceOptimizer:
                     applied_control_center_reqs.extend(rule.requires_control_center)
                     if self.debug:
                         print(
-                            f"DEBUG: 替补单体: {rule.description} 对 {op_name} -> +{rule.synergy_efficiency}%")
+                            f"DEBUG: 分配通用单人: {op_name} -> +{rule.synergy_efficiency}%")
                 if assigned_for_rule:
                     apply_each_assignments[rule.description] = assigned_for_rule
             else:
                 required = rule.operators
+                max_usage_check = lambda \
+                    op_name: 3 if op_name in self.fiammetta_targets and workplace_type == 'trading_station' else 2
                 if any(
                         op_name not in op_by_name or op_name in used_names or op_name in shift_used_names or operator_usage.get(
-                                op_name, 0) >= 2 for op_name in required) or len(
-                        required) > remaining_slots:
+                            op_name, 0) >= max_usage_check(op_name) for op_name in required) or len(
+                    required) > remaining_slots:
                     continue
                 op_objs = [op_by_name[op_name] for op_name in required]
                 if not self.check_elite_requirements(op_objs,
@@ -572,35 +584,45 @@ class WorkplaceOptimizer:
                 "manufacturing_stations": {"Pure Gold": 3, "Originium Shard": 0, "Battle Record": 0}
             })
 
+        fiammetta_config = self.config_data.get('Fiammetta', {"enable": False})
+        fiammetta_enable = fiammetta_config.get('enable', False)
+        fiammetta_available = self.check_fiammetta_available() if fiammetta_enable else False
+        self.fiammetta_targets = self.select_fiammetta_targets() if fiammetta_available else []  # 设置类属性为列表
+        if fiammetta_enable and not self.fiammetta_targets:
+            fiammetta_enable = False  # 无可用目标，禁用
+
+        # 设置贸易站产物
+        trading_products = []
+        for product, count in product_requirements['trading_stations'].items():
+            trading_products.extend([product] * count)
+        for i, workplace in enumerate(self.workplaces['trading_stations']):
+            workplace.current_product = trading_products[i] if i < len(trading_products) else ""
+
+        # 设置制造站产物
+        manufacturing_products = []
+        for product, count in product_requirements['manufacturing_stations'].items():
+            manufacturing_products.extend([product] * count)
+        for i, workplace in enumerate(self.workplaces['manufacturing_stations']):
+            workplace.current_product = manufacturing_products[i] if i < len(manufacturing_products) else ""
+
         results = {
             "title": "优化换班方案",
             "description": "基于效率规则自动生成的换班方案",
             "plans": []
         }
 
-        # 全局跟踪干员使用次数（最多2班）
+        # 全局跟踪干员使用次数（最多2班，除菲亚梅塔目标可3班）
         operator_usage = {op.name: 0 for op in self.get_available_operators()}
 
         for shift in range(3):  # 3班
-            # 根据需求分配产物到工作站
-            for station_type, reqs in product_requirements.items():
-                if station_type == "trading_stations":
-                    workplaces = self.workplaces['trading_stations']
-                elif station_type == "manufacturing_stations":
-                    workplaces = self.workplaces['manufacturing_stations']
-                else:
-                    continue
-                idx = 0
-                for product, count in reqs.items():
-                    for _ in range(count):
-                        if idx < len(workplaces):
-                            workplaces[idx].current_product = product
-                            idx += 1
+            current_target = self.fiammetta_targets[
+                shift % len(self.fiammetta_targets)] if self.fiammetta_targets else ""
 
             plan = {
                 "name": f"第{shift + 1}班",
                 "description": f"自动优化第{shift + 1}班",
                 "description_post": "",
+                "Fiammetta": {"enable": fiammetta_enable, "target": current_target, "order": "pre"},  # 每个班次设置不同目标
                 "rooms": {
                     "trading": [],
                     "manufacture": [],
@@ -684,6 +706,31 @@ class WorkplaceOptimizer:
 
         return results
 
+    def select_fiammetta_targets(self) -> List[str]:
+        """自动选择菲亚梅塔目标：优先巫恋、龙舌兰、但书，其余按贸易站效率排序，取前3个可用干员"""
+        candidates = ['巫恋', '龙舌兰', '但书']
+        selected = []
+        for candidate in candidates:
+            if candidate in self.operators and self.operators[candidate].own and self.operators[candidate].elite >= 2:
+                selected.append(candidate)
+                if len(selected) >= 3:
+                    return selected
+
+        # 如果不足3个，选择贸易站效率最高的干员（基于规则中的出现和效率）
+        trading_rules = [r for r in self.efficiency_rules if r.workplace_type == 'trading_station']
+        op_scores = {}
+        for rule in trading_rules:
+            for op in rule.operators:
+                if op in self.operators and self.operators[op].own and self.operators[op].elite >= 2 and op not in selected:
+                    score = rule.synergy_efficiency / len(rule.operators)  # 平均贡献
+                    op_scores[op] = op_scores.get(op, 0) + score
+        sorted_ops = sorted(op_scores, key=op_scores.get, reverse=True)
+        for op in sorted_ops:
+            selected.append(op)
+            if len(selected) >= 3:
+                break
+        return selected
+
     def serialize_assignment_result(self, result: AssignmentResult) -> Dict[str, Any]:
         """序列化分配结果"""
         return {
@@ -726,70 +773,35 @@ class WorkplaceOptimizer:
         print()
 
         for plan in assignments['plans']:
-            print(f"{plan['name']}: {plan['description']}")
-            if plan['description_post']:
-                print(f"  执行后描述: {plan['description_post']}")
-
-            print("  贸易站分配:")
-            for room in plan['rooms']['trading']:
-                product_info = f" (产物: {room.get('product', '无')})" if room.get('product') else ""
-                if room.get('operators'):
-                    print(
-                        f"    干员: {', '.join(room['operators'])}, 自动填充: {room.get('autofill', False)}{product_info}")
-                else:
-                    print(f"    自动填充{product_info}")
-
-            print("  制造站分配:")
-            for room in plan['rooms']['manufacture']:
-                product_info = f" (产物: {room.get('product', '无')})" if room.get('product') else ""
-                if room.get('operators'):
-                    print(
-                        f"    干员: {', '.join(room['operators'])}, 自动填充: {room.get('autofill', False)}{product_info}")
-                else:
-                    print(f"    自动填充{product_info}")
-
-            print("  控制中枢:")
-            for room in plan['rooms']['control']:
-                if room.get('operators'):
-                    print(f"    干员: {', '.join(room['operators'])}")
-                else:
-                    print("    无干员分配")
-
-            print("  发电站:")
-            for room in plan['rooms']['power']:
-                if room.get('operators'):
-                    print(f"    干员: {', '.join(room['operators'])}, 自动填充: {room.get('autofill', False)}")
-                else:
-                    print("    无干员分配")
-
-            print("  宿舍:")
-            for room in plan['rooms']['dormitory']:
-                if room.get('operators'):
-                    print(f"    干员: {', '.join(room['operators'])}, 自动填充: {room.get('autofill', False)}")
-                else:
-                    print("    自动填充")
-
-            print("  会客室:")
-            for room in plan['rooms']['meeting']:
-                if room.get('operators'):
-                    print(f"    干员: {', '.join(room['operators'])}, 自动填充: {room.get('autofill', False)}")
-                else:
-                    print("    自动填充")
-
-            print("  办公室:")
-            for room in plan['rooms']['hire']:
-                if room.get('operators'):
-                    print(f"    干员: {', '.join(room['operators'])}, 自动填充: {room.get('autofill', False)}")
-                else:
-                    print("    无干员分配")
-
-            print("  加工站:")
-            for room in plan['rooms']['processing']:
-                if room.get('operators'):
-                    print(f"    干员: {', '.join(room['operators'])}, 自动填充: {room.get('autofill', False)}")
-                else:
-                    print("    无干员分配")
-
+            print(f"班次: {plan['name']}")
+            print(f"描述: {plan['description']}")
+            fiammetta = plan.get('Fiammetta', {})
+            if fiammetta.get('enable', False):
+                print(f"菲亚梅塔: 启用，目标: {fiammetta.get('target', '无')}")
+            else:
+                print("菲亚梅塔: 未启用")
+            print("房间分配:")
+            for room_type, rooms in plan['rooms'].items():
+                if room_type in ['trading', 'manufacture']:
+                    for i, room in enumerate(rooms):
+                        product = room.get('product', '无')
+                        operators = room.get('operators', [])
+                        autofill = room.get('autofill', True)
+                        print(f"  {room_type} {i + 1}: 产物={product}, 干员={operators}, 自动填充={autofill}")
+                elif room_type == 'meeting':
+                    room = rooms[0]
+                    operators = room.get('operators', [])
+                    autofill = room.get('autofill', True)
+                    print(f"  会客室: 干员={operators}, 自动填充={autofill}")
+                elif room_type == 'control':
+                    operators = rooms[0].get('operators', [])
+                    print(f"  控制中枢: 干员={operators}")
+                elif room_type == 'dormitory':
+                    for i, room in enumerate(rooms):
+                        operators = room.get('operators', [])
+                        autofill = room.get('autofill', True)
+                        if operators or not autofill:
+                            print(f"  宿舍 {i + 1}: 干员={operators}, 自动填充={autofill}")
             print()
 
     # 新增调试打印函数
