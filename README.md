@@ -28,6 +28,6 @@
 
 1. 下载仓库所有文件
 2. 修改`config.json`中贸易站和制造站数量和产物
-3. 运行 MAA 干员识别，导出到剪贴板后创建`operator.json`并粘贴保存
+3. 运行 MAA 干员识别，导出到剪贴板后创建`operators.json`并粘贴保存
 4. 运行`infrast.py`
 5. 查看`optimal_assignments.json`即为排班表
