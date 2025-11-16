@@ -284,11 +284,13 @@
         "base_combo": ["水月/2"],
         "base_efficiency": 25,
         "rules": [
-          {"combo": ["香草", "杰西卡"], "control_center": ["涤火杰西卡/2"], "efficiency": 70, "priority": 50},
-          {"combo": ["调香师/1"], "efficiency": 30, "priority": 48},
-          {"combo": ["史都华德/1"], "efficiency": 30, "priority": 48},
-          {"combo": ["罗比菈塔/1"], "efficiency": 30, "priority": 48},
-          {"combo": ["海沫/2"], "note": "可将莱茵红松转化", "efficiency": 30, "priority": 48}
+          {"combo": ["香草", "杰西卡"], "control_center": ["涤火杰西卡/2"], "efficiency": 70, "priority": 49},
+          {"combo": ["香草"], "efficiency": 30, "priority": 47},
+          {"combo": ["杰西卡"], "efficiency": 30, "priority": 47},
+          {"combo": ["调香师/1"], "efficiency": 30, "priority": 47},
+          {"combo": ["史都华德/1"], "efficiency": 30, "priority": 47},
+          {"combo": ["罗比菈塔/1"], "efficiency": 30, "priority": 47},
+          {"combo": ["海沫/2"], "note": "可将莱茵红松转化", "efficiency": 30, "priority": 47}
         ]},
       "红松林": {
         "product": "Battle Record",
