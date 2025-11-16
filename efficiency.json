@@ -13,7 +13,11 @@
       { "id": "manufacturing_4", "name": "制造站4", "max_operators": 3, "base_efficiency": 100, "products": ["Pure Gold", "Originium Shard", "Battle Record"] }
     ],
     "control_center": { "id": "control_center", "name": "控制中枢", "max_operators": 5, "base_efficiency": 0 },
-    "meeting_room": {"id": "meeting", "name": "会客室", "max_operators": 2, "base_efficiency": 0}
+    "meeting_room": {"id": "meeting", "name": "会客室", "max_operators": 2, "base_efficiency": 0},
+    "power_station": [
+      {"id": "power_1", "name": "发电站1", "max_operators": 1, "base_efficiency": 0},
+      {"id": "power_2", "name": "发电站2", "max_operators": 1, "base_efficiency": 0},
+      {"id": "power_3", "name": "发电站3", "max_operators": 1, "base_efficiency": 0}]
   },
   "combination_rules": {
     "trading_station": {
@@ -351,6 +355,35 @@
         {"combo": ["裁度/2"], "efficiency": 25, "priority": 46},
         {"combo": ["芬"], "efficiency": 25, "priority": 45},
         {"combo": ["克洛丝"], "efficiency": 25, "priority": 45}
+      ]
+    },
+    "power_station": {
+      "单人": [
+        {
+          "combo": ["缪尔赛思/2"],
+          "efficiency": 25,
+          "note": "+5莱茵挂件，暂不实现",
+          "priority": -1
+        },
+        {
+          "combo": ["承曦格雷伊"],
+          "efficiency": 23,
+          "priority": 65
+        },
+        {"combo": ["格雷伊"], "efficiency": 20, "priority": 60},
+        {"combo": ["雷蛇/2"], "efficiency": 20, "priority": 60},
+        {"combo": ["澄闪/2"], "efficiency": 20, "priority": 60},
+        {"combo": ["海霓/2"], "efficiency": 20, "priority": 60},
+        {"combo": ["炎狱炎熔/2"], "efficiency": 20, "priority": 60},
+        {"combo": ["浊煌/2"], "efficiency": 20, "priority": 60},
+        {"combo": ["菲莱/2"], "efficiency": 20, "priority": 60},
+        {"combo": ["空构/2"], "efficiency": 20, "priority": 59},
+        {"combo": ["雷蛇"], "efficiency": 15, "priority": 50},
+        {"combo": ["布丁"], "efficiency": 15, "priority": 50},
+        {"combo": ["深靛/1"], "efficiency": 15, "priority": 50},
+        {"combo": ["阿消/1"], "efficiency": 15, "priority": 50},
+        {"combo": ["伊芙利特/2"], "efficiency": 15, "priority": 50},
+        {"combo": ["异客/2"], "efficiency": 15, "priority": 50}
       ]
     },
     "meeting_room": {

@@ -261,7 +261,8 @@ class WorkplaceOptimizer:
         workplaces = {
             'trading_stations': [],
             'manufacturing_stations': [],
-            'meeting_room': []
+            'meeting_room': [],
+            'power_station': []
         }
 
         # 从 efficiency.json 取默认值（第一个工作站）
@@ -288,7 +289,7 @@ class WorkplaceOptimizer:
                 base_efficiency=default_manufacturing['base_efficiency']
             ))
 
-        # 添加会客室（不变）
+        # 添加会客室
         meeting_data = self.efficiency_data['workplaces']['meeting_room']
         workplaces['meeting_room'].append(Workplace(
             id=meeting_data['id'],
@@ -296,6 +297,16 @@ class WorkplaceOptimizer:
             max_operators=meeting_data['max_operators'],
             base_efficiency=meeting_data['base_efficiency']
         ))
+
+        # 添加发电站
+        power_stations = self.efficiency_data['workplaces']['power_station']
+        for ps_data in power_stations:
+            workplaces['power_station'].append(Workplace(
+                id=ps_data['id'],
+                name=ps_data['name'],
+                max_operators=ps_data['max_operators'],
+                base_efficiency=ps_data['base_efficiency']
+            ))
 
         return workplaces
 
@@ -357,6 +368,8 @@ class WorkplaceOptimizer:
             return 'manufacturing_station'
         elif 'meeting' in workplace.id:
             return 'meeting_room'
+        elif 'power' in workplace.id:
+            return 'power_station'
         else:
             return workplace.id.split('_')[0] + '_station'[0] + '_station'
 
@@ -835,11 +848,11 @@ class WorkplaceOptimizer:
                     "trading": [],
                     "manufacture": [],
                     "control": [{"operators": []}],  # 初始化为空
-                    "power": [{"operators": []}],
+                    "power": [],
                     "meeting": [{"autofill": True}],
                     "hire": [{"operators": []}],
                     "dormitory": [{"autofill": True} for _ in range(4)],  # 初始化为自动填充
-                    "processing": [{"operators": []}]
+                    "processing": [{"operators": []}],
                 }
             }
             # 班次内干员使用跟踪，防止同一班重复分配
@@ -900,7 +913,7 @@ class WorkplaceOptimizer:
             if dormitory_operators:
                 plan["rooms"]["dormitory"][0] = {
                     "operators": list(dormitory_operators),
-                    "autofill": False
+                    "autofill": True
                 }
 
             # 优化会客室
@@ -909,6 +922,14 @@ class WorkplaceOptimizer:
                 "operators": [op.name for op in result.optimal_operators],
                 "autofill": False if result.optimal_operators else True
             }
+
+            # 优化发电站
+            for workplace in self.workplaces['power_station']:
+                result = self.optimize_workplace(workplace, operator_usage, shift_used_names)
+                plan["rooms"]["power"].append({
+                    "operators": [op.name for op in result.optimal_operators],
+                    "autofill": False if result.optimal_operators else True
+                })
 
             results["plans"].append(plan)
 
@@ -991,11 +1012,17 @@ class WorkplaceOptimizer:
             print("房间分配:")
             for room_type, rooms in plan['rooms'].items():
                 if room_type in ['trading', 'manufacture']:
+                    name = {'trading': '贸易站', 'manufacture': '制造站'}
                     for i, room in enumerate(rooms):
                         product = room.get('product', '无')
                         operators = room.get('operators', [])
                         autofill = room.get('autofill', True)
-                        print(f"  {room_type} {i + 1}: 产物={product}, 干员={operators}, 自动填充={autofill}")
+                        print(f"  {name[room_type]} {i + 1}: 产物={product}, 干员={operators}, 自动填充={autofill}")
+                elif room_type == 'power':
+                    for i, room in enumerate(rooms):
+                        operators = room.get('operators', [])
+                        autofill = room.get('autofill', True)
+                        print(f"  发电站 {i + 1}: 干员={operators}, 自动填充={autofill}")
                 elif room_type == 'meeting':
                     room = rooms[0]
                     operators = room.get('operators', [])
