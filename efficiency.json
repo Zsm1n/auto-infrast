@@ -3,12 +3,14 @@
     "trading_stations": [
       { "id": "trading_1", "name": "贸易站1", "max_operators": 3, "base_efficiency": 100, "products": ["LMD", "Orundum"] },
       { "id": "trading_2", "name": "贸易站2", "max_operators": 3, "base_efficiency": 100, "products": ["LMD", "Orundum"] },
-      { "id": "trading_3", "name": "贸易站3", "max_operators": 3, "base_efficiency": 100, "products": ["LMD", "Orundum"] }
+      { "id": "trading_3", "name": "贸易站3", "max_operators": 3, "base_efficiency": 100, "products": ["LMD", "Orundum"] },
+      { "id": "trading_4", "name": "贸易站4", "max_operators": 3, "base_efficiency": 100, "products": ["LMD", "Orundum"] }
     ],
     "manufacturing_stations": [
       { "id": "manufacturing_1", "name": "制造站1", "max_operators": 3, "base_efficiency": 100, "products": ["Pure Gold", "Originium Shard", "Battle Record"] },
       { "id": "manufacturing_2", "name": "制造站2", "max_operators": 3, "base_efficiency": 100, "products": ["Pure Gold", "Originium Shard", "Battle Record"] },
-      { "id": "manufacturing_3", "name": "制造站3", "max_operators": 3, "base_efficiency": 100, "products": ["Pure Gold", "Originium Shard", "Battle Record"] }
+      { "id": "manufacturing_3", "name": "制造站3", "max_operators": 3, "base_efficiency": 100, "products": ["Pure Gold", "Originium Shard", "Battle Record"] },
+      { "id": "manufacturing_4", "name": "制造站4", "max_operators": 3, "base_efficiency": 100, "products": ["Pure Gold", "Originium Shard", "Battle Record"] }
     ],
     "control_center": { "id": "control_center", "name": "控制中枢", "max_operators": 5, "base_efficiency": 0 },
     "meeting_room": {"id": "meeting", "name": "会客室", "max_operators": 2, "base_efficiency": 0}

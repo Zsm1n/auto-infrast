@@ -76,6 +76,11 @@ class WorkplaceOptimizer:
         self.efficiency_data = self.load_json(efficiency_file)
         self.operator_data = self.load_json(operator_file)
         self.config_data = self.load_json(config_file) if config_file else {}
+
+        # 从 config.json 读取数量，默认 3 和 3
+        self.trading_stations_count = self.config_data.get('trading_stations_count', 3)
+        self.manufacturing_stations_count = self.config_data.get('manufacturing_stations_count', 3)
+
         self.operators = self.load_operators()
         self.efficiency_rules = self.load_efficiency_rules()
         self.workplaces = self.load_workplaces()
@@ -241,23 +246,31 @@ class WorkplaceOptimizer:
             'meeting_room': []
         }
 
-        for station_data in self.efficiency_data['workplaces']['trading_stations']:
+        # 从 efficiency.json 取默认值（第一个工作站）
+        default_trading = self.efficiency_data['workplaces']['trading_stations'][0] if \
+        self.efficiency_data['workplaces']['trading_stations'] else {'max_operators': 3, 'base_efficiency': 100}
+        default_manufacturing = self.efficiency_data['workplaces']['manufacturing_stations'][0] if \
+        self.efficiency_data['workplaces']['manufacturing_stations'] else {'max_operators': 3, 'base_efficiency': 100}
+
+        # 动态创建贸易站
+        for i in range(self.trading_stations_count):
             workplaces['trading_stations'].append(Workplace(
-                id=station_data['id'],
-                name=station_data['name'],
-                max_operators=station_data['max_operators'],
-                base_efficiency=station_data['base_efficiency']
+                id=f"trading_{i + 1}",
+                name=f"贸易站{i + 1}",
+                max_operators=default_trading['max_operators'],
+                base_efficiency=default_trading['base_efficiency']
             ))
 
-        for station_data in self.efficiency_data['workplaces']['manufacturing_stations']:
+        # 动态创建制造站
+        for i in range(self.manufacturing_stations_count):
             workplaces['manufacturing_stations'].append(Workplace(
-                id=station_data['id'],
-                name=station_data['name'],
-                max_operators=station_data['max_operators'],
-                base_efficiency=station_data['base_efficiency']
+                id=f"manufacturing_{i + 1}",
+                name=f"制造站{i + 1}",
+                max_operators=default_manufacturing['max_operators'],
+                base_efficiency=default_manufacturing['base_efficiency']
             ))
 
-        # 添加会客室
+        # 添加会客室（不变）
         meeting_data = self.efficiency_data['workplaces']['meeting_room']
         workplaces['meeting_room'].append(Workplace(
             id=meeting_data['id'],
