@@ -54,7 +54,6 @@ class Workplace:
 
 
 @dataclass
-@dataclass
 class AssignmentResult:
     workplace: Workplace
     optimal_operators: List[Operator]
@@ -143,15 +142,13 @@ class WorkplaceOptimizer:
                         if 'control_center' in rule_data:
                             for cc_str in rule_data['control_center']:
                                 name, elite = parse_operator_string(cc_str)
-                                control_center_reqs.append(
-                                    ControlCenterRequirement(operator=name, elite_required=elite))
+                                control_center_reqs.append(ControlCenterRequirement(operator=name, elite_required=elite))
                         if 'dormitory' in rule_data:
                             for dorm_str in rule_data['dormitory']:
                                 name, elite = parse_operator_string(dorm_str)
                                 dormitory_reqs.append(DormitoryRequirement(operator=name, elite_required=elite))
 
-                        description = "通用单人" if rule_data.get('apply_each', False) else rule_data.get('note',
-                                                                                                          f"{system_name} - {', '.join(operators)}")
+                        description = "通用单人" if rule_data.get('apply_each', False) else f"{system_name} - {', '.join(operators)}"
 
                         # 解析产物（默认为空列表）
                         rule_products = rule_data.get('product', [])

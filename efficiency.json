@@ -105,6 +105,7 @@
       ]},
       "孑体系": {
         "base_combo": ["孑/1"],
+        "base_efficiency": 40,
         "rules": [
         {
           "combo": ["银灰/2"],
@@ -216,67 +217,156 @@
         { "combo": ["月见夜", "古米", "夜刀", "空爆", "慕斯", "缠丸/1", "安比尔/1", "芬/1", "渡桥/2", "瑰盐/2", "新约能天使/2"], "efficiency": 30, "apply_each": true, "priority": 1 }
       ]
     },
+    "manufacturing_station": {
+      "莱茵生命": {
+        "base_combo": ["多萝西/2"],
+        "base_efficiency": 25,
+        "rules": [
+        {
+          "combo": ["淬羽赫默/2"],
+          "efficiency": 35,
+          "priority": 49
+        },
+        {
+          "combo": ["白面號/2"],
+          "efficiency": 30,
+          "priority": 48
+        },
+        {
+          "combo": ["赫默/2"],
+          "efficiency": 30,
+          "priority": 48
+        },
+        {
+          "combo": ["星源/2"],
+          "efficiency": 30,
+          "priority": 48
+        }
+      ]},
+      "黑钢国际": [
+        {
+          "combo": ["杏仁/2", "香草", "杰西卡"],
+          "control_center": ["涤火杰西卡/2"],
+          "efficiency": 35,
+          "priority": 49
+        }],
+      "通用单人": [
+        { "combo": ["清流/1"], "efficiency": 40, "product": ["Pure Gold"], "note": "20%*N,N=贸易站数", "priority": 60 },
+        { "combo": ["苍苔/2"], "efficiency": 40, "product": ["Pure Gold"], "note": "30%+5*n", "priority": 59 },
+        { "combo": ["阿罗玛/2"], "efficiency": 45, "product": ["Pure Gold"], "note": "25%-45%", "priority": 58 },
+        { "combo": ["砾/1"], "control_center": ["薇薇安娜/2"], "efficiency": 42, "product": ["Pure Gold"], "priority": 55 },
+        { "combo": ["砾/1"], "efficiency": 35, "product": ["Pure Gold"], "priority": 50 },
+        { "combo": ["引星棘刺/2"], "efficiency": 39, "product": ["Pure Gold"], "note": "33%-39%", "priority": 50 },
+        { "combo": ["杏仁/2"], "efficiency": 36, "product": ["Pure Gold"], "note": "31%-36%", "priority": 49 },
+        { "combo": ["夜烟"], "efficiency": 30, "product": ["Pure Gold"], "priority": 48 },
+        { "combo": ["斑点/1"], "efficiency": 30, "product": ["Pure Gold"], "priority": 48 },
+        { "combo": ["温米/2"], "efficiency": 30, "product": ["Pure Gold"], "priority": 48 },
+        { "combo": ["温米/2", "阿兰娜/2"], "efficiency": 75, "product": ["Pure Gold"], "note": "+3小车，亏损15%发电（暂不实现）", "priority": -1 },
+        { "combo": ["断罪者/1"], "efficiency": 35, "product": ["Battle Record"], "priority": 50 },
+        { "combo": ["食铁兽/2"], "efficiency": 35, "product": ["Battle Record"], "priority": 50 },
+        { "combo": ["弑君者/2"], "efficiency": 35, "product": ["Battle Record"], "priority": 50 },
+        { "combo": ["圣约送葬人/2"], "efficiency": 30, "product": ["Battle Record"], "priority": 48 },
+        { "combo": ["食铁兽"], "efficiency": 30, "product": ["Battle Record"], "priority": 48 },
+        { "combo": ["霜叶/1"], "efficiency": 30, "product": ["Battle Record"], "priority": 48 },
+        { "combo": ["红豆"], "efficiency": 30, "product": ["Battle Record"], "priority": 48 },
+        { "combo": ["白雪/1"], "efficiency": 30, "product": ["Battle Record"], "priority": 48 },
+        { "combo": ["Castle-3"], "efficiency": 30, "product": ["Battle Record"], "priority": 48 },
+        { "combo": ["褐果/1"], "efficiency": 45, "product": ["Originium Shard"], "priority": 50 },
+        { "combo": ["地灵/1"], "efficiency": 35, "product": ["Originium Shard"], "priority": 49 },
+        { "combo": ["炎熔/1"], "efficiency": 35, "product": ["Originium Shard"], "priority": 49 },
+        { "combo": ["艾雅法拉"], "efficiency": 35, "product": ["Originium Shard"], "priority": 49 },
+        { "combo": ["锡兰/2"], "efficiency": 35, "product": ["Originium Shard"], "priority": 49 },
+        { "combo": ["薄绿/1"], "efficiency": 30, "product": ["Originium Shard"], "priority": 48 },
+        { "combo": ["月见夜/1"], "efficiency": 30, "product": ["Originium Shard"], "priority": 48 },
+        {"combo": ["淬羽赫默/2"], "efficiency": 30, "priority": 48},
+        {"combo": ["白面鸮/2"], "efficiency": 25, "priority": 46},
+        {"combo": ["赫默/2"], "efficiency": 25, "priority": 46},
+        {"combo": ["星源/2"], "efficiency": 25, "priority": 46},
+        {"combo": ["槐琥/2"], "efficiency": 40, "priority": 52},
+        {"combo": ["至简/2"], "efficiency": 40, "note": "3发电站", "priority": 52},
+        {"combo": ["梅尔/2"], "efficiency": 30, "priority": 48},
+        {"combo": ["玛露西尔/2"], "dormitory": ["森西/2"], "efficiency": 35, "note": "31%-35%", "priority": 49},
+        {"combo": ["铅踝"], "efficiency": 30, "priority": 47},
+        {"combo": ["泡普卡"], "efficiency": 25, "priority": 46},
+        {"combo": ["石棉"], "efficiency": 25, "priority": 46},
+        {"combo": ["裁度/2"], "efficiency": 25, "priority": 46},
+        {"combo": ["芬"], "efficiency": 25, "priority": 45},
+        {"combo": ["克洛丝"], "efficiency": 25, "priority": 45}
+      ]
+    },
     "meeting_room": {
       "单人": [
         {
           "combo": ["见行者/2"],
-          "efficiency": 60
+          "efficiency": 60,
+          "priority": 90
         },
         {
           "combo": ["跃跃/2"],
           "efficiency": 63,
-          "note": "开趴"
+          "note": "开趴",
+          "priority": 89
         },
         {
           "combo": ["信仰搅拌机/2"],
-          "efficiency": 56
+          "efficiency": 56,
+          "priority": 88
         },
         {
           "combo": ["伊内丝/2"],
-          "efficiency": 56
+          "efficiency": 56,
+          "priority": 87
         },
         {
           "combo": ["莱欧斯/2"],
           "dormitory": ["森西/2"],
           "efficiency": 51,
-          "note": "47-55%，需宿舍有森西"
+          "note": "47-55%，需宿舍有森西",
+          "priority": 84
         },
         {
           "combo": ["红/2"],
-          "efficiency": 50
+          "efficiency": 50,
+          "priority": 83
         },
         {
           "combo": ["星极/2"],
-          "efficiency": 50
+          "efficiency": 50,
+          "priority": 83
         },
         {
           "combo": ["远山/2"],
-          "efficiency": 49
+          "efficiency": 49,
+          "priority": 82
         },
         {
           "combo": ["晓歌/2"],
           "efficiency": 35,
-          "note": "未拥有线索的概率提升"
+          "note": "未拥有线索的概率提升",
+          "priority": 80
         },
         {
           "combo": ["谜图/2"],
           "efficiency": 35,
-          "note": "未拥有线索的概率提升"
+          "note": "未拥有线索的概率提升",
+          "priority": 80
         }
       ],
       "组合": [
         {
           "combo": ["忍冬/2", "铃兰/2"],
-          "efficiency": 102
+          "efficiency": 102,
+          "priority": 85
         },
         {
           "combo": ["伺夜/2", "陈/2"],
-          "efficiency": 102
+          "efficiency": 102,
+          "priority": 85
         },
         {
           "combo": ["提丰/2", "凛视/2"],
           "efficiency": 91,
-          "note": "未拥有线索的概率提升"
+          "priority": 80
         }
       ]
     }
