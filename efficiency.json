@@ -51,19 +51,19 @@
         "base_combo": ["但书/2"],
         "rules": [
         {
-          "combo": ["鸿雪/2", "图耶/2"],
+          "combo": ["（需要研究）鸿雪/2", "图耶/2"],
           "efficiency": 301,
           "note": "（较麻烦需要研究）绮良跨站, 4赤金4杜林",
           "priority": -1
         },
         {
-          "combo": ["乌有/2"],
+          "combo": ["（需要研究）乌有/2"],
           "efficiency": 270,
           "note": "（较麻烦需要研究）搭配满烟火乌有95+40%",
           "priority": -1
         },
         {
-          "combo": ["黑键/2", "乌有/2"],
+          "combo": ["（需要研究）黑键/2", "乌有/2"],
           "efficiency": 219,
           "note": "（需要研究）黑键乌有混用满挂件",
           "priority": 130
@@ -206,9 +206,9 @@
         }
       ],
       "通用单人": [
-        { "combo": ["乌有/2"], "efficiency": 95, "note": "20%-95%", "priority": 50 },
-        { "combo": ["黑键/2"], "efficiency": 47, "note": "32%-47%", "priority": 49 },
-        { "combo": ["泰拉大陆调查团"], "efficiency": 41, "note": "较麻烦，不考虑", "priority": -1 },
+        { "combo": ["（需要研究）乌有/2"], "efficiency": 95, "note": "20%-95%", "priority": 50 },
+        { "combo": ["（需要研究）黑键/2"], "efficiency": 47, "note": "32%-47%", "priority": 49 },
+        { "combo": ["泰拉大陆调查团（需要研究）"], "efficiency": 41, "note": "较麻烦，不考虑", "priority": -1 },
         { "combo": ["伺夜/2"], "efficiency": 40, "priority": 47 },
         { "combo": ["空弦/2"], "efficiency": 40, "priority": 47 },
         { "combo": ["吉星/2"], "efficiency": 40, "priority": 47 },
@@ -335,7 +335,7 @@
         { "combo": ["夜烟"], "efficiency": 30, "product": ["Pure Gold"], "priority": 48 },
         { "combo": ["斑点/1"], "efficiency": 30, "product": ["Pure Gold"], "priority": 48 },
         { "combo": ["温米/2"], "efficiency": 30, "product": ["Pure Gold"], "priority": 48 },
-        { "combo": ["温米/2", "阿兰娜/2"], "efficiency": 75, "product": ["Pure Gold"], "note": "+3小车，亏损15%发电（暂不实现）", "priority": -1 },
+        { "combo": ["（需要研究）温米/2", "阿兰娜/2"], "efficiency": 75, "product": ["Pure Gold"], "note": "+3小车，亏损15%发电（暂不实现）", "priority": -1 },
         { "combo": ["断罪者/1"], "efficiency": 35, "product": ["Battle Record"], "priority": 50 },
         { "combo": ["食铁兽/2"], "efficiency": 35, "product": ["Battle Record"], "priority": 50 },
         { "combo": ["弑君者/2"], "efficiency": 35, "product": ["Battle Record"], "priority": 50 },
