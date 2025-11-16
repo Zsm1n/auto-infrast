@@ -207,6 +207,7 @@
         { "combo": ["泰拉大陆调查团"], "efficiency": 41, "note": "较麻烦，不考虑", "priority": -1 },
         { "combo": ["伺夜/2"], "efficiency": 40, "priority": 47 },
         { "combo": ["空弦/2"], "efficiency": 40, "priority": 47 },
+        { "combo": ["吉星/2"], "efficiency": 40, "priority": 47 },
         { "combo": ["深巡/2"], "efficiency": 40, "note": "30%-40%", "priority": 46 },
         { "combo": ["赫德雷/2"], "efficiency": 40, "note": "30%-40%", "priority": 46 },
         { "combo": ["能天使/2"], "efficiency": 35, "priority": 45 },
