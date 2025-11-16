@@ -289,6 +289,23 @@
           {"combo": ["罗比菈塔/1"], "efficiency": 30, "priority": 48},
           {"combo": ["海沫/2"], "note": "可将莱茵红松转化", "efficiency": 30, "priority": 48}
         ]},
+      "红松林": {
+        "product": "Battle Record",
+        "rules": [
+          {"combo": ["远牙/2"], "control_center": ["薇薇安娜/2", "焰尾/2"], "efficiency": 42, "priority": 65},
+          {"combo": ["灰毫/2"], "control_center": ["薇薇安娜/2", "焰尾/2"], "efficiency": 42, "priority": 65},
+          {"combo": ["野鬃/2"], "control_center": ["薇薇安娜/2", "焰尾/2"], "efficiency": 42, "priority": 65},
+          {"combo": ["远牙/2"], "control_center": ["薇薇安娜/2"], "efficiency": 35, "priority": 50},
+          {"combo": ["灰毫/2"], "control_center": ["薇薇安娜/2"], "efficiency": 35, "priority": 50},
+          {"combo": ["野鬃/2"], "control_center": ["薇薇安娜/2"], "efficiency": 35, "priority": 50},
+          {"combo": ["远牙/2"], "control_center": ["焰尾/2"], "efficiency": 32, "priority": 49},
+          {"combo": ["灰毫/2"], "control_center": ["焰尾/2"], "efficiency": 32, "priority": 49},
+          {"combo": ["野鬃/2"], "control_center": ["焰尾/2"], "efficiency": 32, "priority": 49},
+          {"combo": ["远牙/2"], "efficiency": 25, "priority": 46},
+          {"combo": ["灰毫/2"], "efficiency": 25, "priority": 46},
+          {"combo": ["野鬃/2"], "efficiency": 25, "priority": 46}
+        ]
+      },
       "通用单人": [
         { "combo": ["清流/1"], "efficiency": 40, "product": ["Pure Gold"], "note": "20%*N,N=贸易站数", "priority": 60 },
         { "combo": ["苍苔/2"], "efficiency": 40, "product": ["Pure Gold"], "note": "30%+5*n", "priority": 59 },

@@ -1,7 +1,7 @@
 {
   "product_requirements": {
     "trading_stations": {"LMD": 2, "Orundum": 0},
-    "manufacturing_stations": {"Pure Gold": 2, "Originium Shard": 2}
+    "manufacturing_stations": {"Pure Gold": 2, "Originium Shard": 0, "Battle Record": 2}
   },
   "trading_stations_count": 2,
   "manufacturing_stations_count": 4,
