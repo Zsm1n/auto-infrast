@@ -1,0 +1,12 @@
+{
+  "product_requirements": {
+    "trading_stations": {
+      "LMD": 2,
+      "Orundum": 1
+    },
+    "manufacturing_stations": {
+      "Pure Gold": 2,
+      "Originium Shard": 1
+    }
+  }
+}

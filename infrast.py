@@ -1,6 +1,6 @@
 import json
 from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 
@@ -36,10 +36,11 @@ class OperatorEfficiency:
     description: str
     elite_requirements: Dict[str, int]
     requires_control_center: List[ControlCenterRequirement]
-    requires_dormitory: List[DormitoryRequirement]  # 新增字段
+    requires_dormitory: List[DormitoryRequirement]
     special_conditions: Optional[str] = None
     apply_each: bool = False
     priority: int = 0
+    products: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -48,6 +49,8 @@ class Workplace:
     name: str
     max_operators: int
     base_efficiency: float
+    products: List[str] = field(default_factory=list)  # 保留，支持验证
+    current_product: str = ""  # 新增，当前班次产物
 
 
 @dataclass
@@ -63,14 +66,16 @@ class AssignmentResult:
 
 
 class WorkplaceOptimizer:
-    def __init__(self, efficiency_file: str, operator_file: str, debug: bool = False):
+    def __init__(self, efficiency_file: str, operator_file: str, config_file: str = None, debug: bool = False):
         # 保存文件名，便于调试输出
         self.efficiency_file = efficiency_file
         self.operator_file = operator_file
+        self.config_file = config_file
         self.debug = debug
 
         self.efficiency_data = self.load_json(efficiency_file)
         self.operator_data = self.load_json(operator_file)
+        self.config_data = self.load_json(config_file) if config_file else {}
         self.operators = self.load_operators()
         self.efficiency_rules = self.load_efficiency_rules()
         self.workplaces = self.load_workplaces()
@@ -103,8 +108,8 @@ class WorkplaceOptimizer:
             )
         return operators
 
+    # 在 load_efficiency_rules 方法中更新解析逻辑
     def load_efficiency_rules(self) -> List[OperatorEfficiency]:
-        """加载并解析效率规则，适配新的 combination_rules 结构。"""
         expanded_rules: List[OperatorEfficiency] = []
 
         def parse_operator_string(op_str: str) -> tuple[str, int]:
@@ -127,46 +132,49 @@ class WorkplaceOptimizer:
                             if elite > 0:
                                 elite_requirements[name] = elite
 
-                        # 在规则解析中添加宿舍需求解析
                         control_center_reqs = []
-                        dormitory_reqs = []  # 新增
+                        dormitory_reqs = []
                         if 'control_center' in rule_data:
                             for cc_str in rule_data['control_center']:
-                                cc_name, cc_elite = parse_operator_string(cc_str)
-                                control_center_reqs.append(ControlCenterRequirement(
-                                    operator=cc_name, elite_required=cc_elite
-                                ))
-                        if 'dormitory' in rule_data:  # 新增解析
+                                name, elite = parse_operator_string(cc_str)
+                                control_center_reqs.append(
+                                    ControlCenterRequirement(operator=name, elite_required=elite))
+                        if 'dormitory' in rule_data:
                             for dorm_str in rule_data['dormitory']:
-                                dorm_name, dorm_elite = parse_operator_string(dorm_str)
-                                dormitory_reqs.append(DormitoryRequirement(
-                                    operator=dorm_name, elite_required=dorm_elite
-                                ))
+                                name, elite = parse_operator_string(dorm_str)
+                                dormitory_reqs.append(DormitoryRequirement(operator=name, elite_required=elite))
 
-                        # 添加 description 定义
                         description = "通用单人" if rule_data.get('apply_each', False) else rule_data.get('note',
                                                                                                           f"{system_name} - {', '.join(operators)}")
+
+                        # 解析产物（默认为空列表）
+                        rule_products = rule_data.get('product', [])
+                        if isinstance(rule_products, str):
+                            rule_products = [rule_products]
 
                         expanded_rules.append(OperatorEfficiency(
                             operators=operators,
                             workplace_type=workplace_type,
                             base_efficiency=0,
                             synergy_efficiency=rule_data['efficiency'],
-                            description=description,  # 现在已定义
+                            description=description,
                             elite_requirements=elite_requirements,
                             requires_control_center=control_center_reqs,
-                            requires_dormitory=dormitory_reqs,  # 新增
+                            requires_dormitory=dormitory_reqs,
                             special_conditions=None,
                             apply_each=rule_data.get('apply_each', False),
-                            priority=rule_data.get('priority', 0)
+                            priority=rule_data.get('priority', 0),
+                            products=rule_products  # 新增
                         ))
 
                 elif isinstance(system_data, dict):
                     # 处理有 base_combo 的体系，如 "巫恋组"、"但书体系"、"孑体系"
                     base_operators = []
                     base_elite_requirements = {}
+                    base_products = system_data.get('product', [])  # 基础产物
+                    if isinstance(base_products, str):
+                        base_products = [base_products]
 
-                    # 处理基础组合
                     if 'base_combo' in system_data:
                         for op_str in system_data['base_combo']:
                             name, elite = parse_operator_string(op_str)
@@ -174,46 +182,35 @@ class WorkplaceOptimizer:
                             if elite > 0:
                                 base_elite_requirements[name] = elite
 
-                    # 处理规则
                     for rule_data in system_data.get('rules', []):
-                        # 合并基础组合和规则中的额外干员
                         all_operators = base_operators.copy()
                         all_elite_requirements = base_elite_requirements.copy()
 
-                        # 添加规则中的干员
                         for op_str in rule_data.get('combo', []):
                             name, elite = parse_operator_string(op_str)
                             all_operators.append(name)
                             if elite > 0:
-                                all_elite_requirements[name] = max(all_elite_requirements.get(name, 0), elite)
+                                all_elite_requirements[name] = elite
 
                         control_center_reqs = []
-                        dormitory_reqs = []  # 新增
-                        # 添加规则中的中枢需求
+                        dormitory_reqs = []
                         if 'control_center' in rule_data:
                             for cc_str in rule_data['control_center']:
-                                cc_name, cc_elite = parse_operator_string(cc_str)
-                                control_center_reqs.append(ControlCenterRequirement(
-                                    operator=cc_name, elite_required=cc_elite
-                                ))
-
-                        # 添加规则中的宿舍需求
-                        if 'dormitory' in rule_data:  # 新增解析
+                                name, elite = parse_operator_string(cc_str)
+                                control_center_reqs.append(
+                                    ControlCenterRequirement(operator=name, elite_required=elite))
+                        if 'dormitory' in rule_data:
                             for dorm_str in rule_data['dormitory']:
-                                dorm_name, dorm_elite = parse_operator_string(dorm_str)
-                                dormitory_reqs.append(DormitoryRequirement(
-                                    operator=dorm_name, elite_required=dorm_elite
-                                ))
+                                name, elite = parse_operator_string(dorm_str)
+                                dormitory_reqs.append(DormitoryRequirement(operator=name, elite_required=elite))
 
-                        # 添加基础组合的中枢需求（如果有）
-                        if 'control_center' in system_data:
-                            for cc_str in system_data['control_center']:
-                                cc_name, cc_elite = parse_operator_string(cc_str)
-                                control_center_reqs.append(ControlCenterRequirement(
-                                    operator=cc_name, elite_required=cc_elite
-                                ))
+                        # 合并基础和规则产物
+                        rule_products = rule_data.get('product', base_products)
+                        if isinstance(rule_products, str):
+                            rule_products = [rule_products]
+                        elif not isinstance(rule_products, list):
+                            rule_products = base_products
 
-                        # 使用系统名称和干员列表作为描述
                         description = f"{system_name} - {', '.join(all_operators)}"
                         expanded_rules.append(OperatorEfficiency(
                             operators=all_operators,
@@ -223,13 +220,13 @@ class WorkplaceOptimizer:
                             description=description,
                             elite_requirements=all_elite_requirements,
                             requires_control_center=control_center_reqs,
-                            requires_dormitory=dormitory_reqs,  # 新增
+                            requires_dormitory=dormitory_reqs,
                             special_conditions=None,
                             apply_each=rule_data.get('apply_each', False),
-                            priority=rule_data.get('priority', 0)
+                            priority=rule_data.get('priority', 0),
+                            products=rule_products  # 新增
                         ))
 
-        # 按优先级和协同效率排序
         expanded_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
 
         if self.debug:
@@ -372,7 +369,8 @@ class WorkplaceOptimizer:
 
         return total_efficiency, applied_combinations, applied_control_center_reqs
 
-    def optimize_workplace(self, workplace: Workplace, operator_usage: Dict[str, int], shift_used_names: set) -> AssignmentResult:
+    def optimize_workplace(self, workplace: Workplace, operator_usage: Dict[str, int],
+                           shift_used_names: set) -> AssignmentResult:
         """优化单个工作站的干员配置（体系优先 + 通用替补），考虑全局干员使用限制和班次内重复限制。
 
         每个干员一天最多分配到两个班次，且同一班内不能重复分配到多个设施。
@@ -381,6 +379,12 @@ class WorkplaceOptimizer:
         op_by_name = {op.name: op for op in available_ops}
         workplace_type = self.get_workplace_type(workplace)
         systems = self.efficiency_data['combination_rules'].get(workplace_type, {})
+
+        # 过滤规则：如果规则指定产物，则必须匹配当前产物；未指定则允许
+        def rule_matches_products(rule: OperatorEfficiency) -> bool:
+            if not rule.products:
+                return True
+            return workplace.current_product in rule.products
 
         # 动态获取 specific_systems（dict 类型）和 general_systems（list 类型）
         specific_systems = [k for k, v in systems.items() if isinstance(v, dict)]
@@ -398,13 +402,13 @@ class WorkplaceOptimizer:
         applied_control_center_reqs: List[ControlCenterRequirement] = []
         applied_dormitory_reqs: List[DormitoryRequirement] = []  # 新增
 
-
         # 1. 先处理特定体系（按优先级排序）
         for system_name in specific_systems:
             if remaining_slots <= 0:
                 break
             system_rules = [r for r in self.efficiency_rules if
-                            r.workplace_type == workplace_type and system_name in r.description]
+                            r.workplace_type == workplace_type and system_name in r.description and rule_matches_products(
+                                r)]
             system_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
 
             for rule in system_rules:
@@ -470,7 +474,7 @@ class WorkplaceOptimizer:
         # 2. 通用组合作为替补（包括apply_each）
         general_rules = [r for r in self.efficiency_rules if
                          r.workplace_type == workplace_type and any(
-                             sys in r.description for sys in general_systems)]
+                             sys in r.description for sys in general_systems) and rule_matches_products(r)]
         general_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
 
         # 用于合并apply_each规则的分配干员
@@ -506,13 +510,15 @@ class WorkplaceOptimizer:
                     apply_each_assignments[rule.description] = assigned_for_rule
             else:
                 required = rule.operators
-                if any(op_name not in op_by_name or op_name in used_names or op_name in shift_used_names or operator_usage.get(op_name, 0) >= 2 for op_name in required) or len(
+                if any(
+                        op_name not in op_by_name or op_name in used_names or op_name in shift_used_names or operator_usage.get(
+                                op_name, 0) >= 2 for op_name in required) or len(
                         required) > remaining_slots:
                     continue
                 op_objs = [op_by_name[op_name] for op_name in required]
                 if not self.check_elite_requirements(op_objs,
                                                      rule.elite_requirements) or not self.check_control_center_requirements(
-                        rule.requires_control_center):
+                    rule.requires_control_center):
                     continue
                 for op_name in required:
                     assigned_ops.append(op_by_name[op_name])
@@ -545,8 +551,14 @@ class WorkplaceOptimizer:
             dormitory_requirements=applied_dormitory_reqs  # 新增
         )
 
-    def get_optimal_assignments(self) -> Dict[str, Any]:
+    def get_optimal_assignments(self, product_requirements: Dict[str, Dict[str, int]] = None) -> Dict[str, Any]:
         """获取最优分配方案，输出符合 MAA 协议的 JSON 格式"""
+        if product_requirements is None:
+            product_requirements = self.config_data.get('product_requirements', {
+                "trading_stations": {"LMD": 3, "Orundum": 0},  # 默认值，可调整
+                "manufacturing_stations": {"Pure Gold": 3, "Originium Shard": 0, "Battle Record": 0}
+            })
+
         results = {
             "title": "优化换班方案",
             "description": "基于效率规则自动生成的换班方案",
@@ -557,6 +569,21 @@ class WorkplaceOptimizer:
         operator_usage = {op.name: 0 for op in self.get_available_operators()}
 
         for shift in range(3):  # 3班
+            # 根据需求分配产物到工作站
+            for station_type, reqs in product_requirements.items():
+                if station_type == "trading_stations":
+                    workplaces = self.workplaces['trading_stations']
+                elif station_type == "manufacturing_stations":
+                    workplaces = self.workplaces['manufacturing_stations']
+                else:
+                    continue
+                idx = 0
+                for product, count in reqs.items():
+                    for _ in range(count):
+                        if idx < len(workplaces):
+                            workplaces[idx].current_product = product
+                            idx += 1
+
             plan = {
                 "name": f"第{shift + 1}班",
                 "description": f"自动优化第{shift + 1}班",
@@ -584,8 +611,8 @@ class WorkplaceOptimizer:
                 result = self.optimize_workplace(workplace, operator_usage, shift_used_names)
                 room = {
                     "operators": [op.name for op in result.optimal_operators],
-                    "sort": True,
-                    "autofill": False
+                    "autofill": False if result.optimal_operators else True,
+                    "product": workplace.current_product  # 新增产物字段
                 }
                 plan["rooms"]["trading"].append(room)
                 # 添加控制中枢需求干员
@@ -606,8 +633,8 @@ class WorkplaceOptimizer:
                 result = self.optimize_workplace(workplace, operator_usage, shift_used_names)
                 room = {
                     "operators": [op.name for op in result.optimal_operators],
-                    "sort": True,
-                    "autofill": False
+                    "autofill": False if result.optimal_operators else True,
+                    "product": workplace.current_product  # 新增产物字段
                 }
                 plan["rooms"]["manufacture"].append(room)
                 # 添加控制中枢需求干员
@@ -692,19 +719,21 @@ class WorkplaceOptimizer:
 
             print("  贸易站分配:")
             for room in plan['rooms']['trading']:
+                product_info = f" (产物: {room.get('product', '无')})" if room.get('product') else ""
                 if room.get('operators'):
                     print(
-                        f"    干员: {', '.join(room['operators'])}, 排序: {room.get('sort', False)}, 自动填充: {room.get('autofill', False)}")
+                        f"    干员: {', '.join(room['operators'])}, 自动填充: {room.get('autofill', False)}{product_info}")
                 else:
-                    print("    无干员分配")
+                    print(f"    自动填充{product_info}")
 
             print("  制造站分配:")
             for room in plan['rooms']['manufacture']:
+                product_info = f" (产物: {room.get('product', '无')})" if room.get('product') else ""
                 if room.get('operators'):
                     print(
-                        f"    干员: {', '.join(room['operators'])}, 排序: {room.get('sort', False)}, 自动填充: {room.get('autofill', False)}")
+                        f"    干员: {', '.join(room['operators'])}, 自动填充: {room.get('autofill', False)}{product_info}")
                 else:
-                    print("    无干员分配")
+                    print(f"    自动填充{product_info}")
 
             print("  控制中枢:")
             for room in plan['rooms']['control']:
@@ -777,7 +806,7 @@ class WorkplaceOptimizer:
 
 # 使用示例
 if __name__ == "__main__":
-    optimizer = WorkplaceOptimizer('efficiency.json', 'operators.json', debug=False)
+    optimizer = WorkplaceOptimizer('efficiency.json', 'operators.json', 'config.json', debug=False)
     optimizer.display_optimal_assignments()
 
     # 获取最优分配的JSON格式
