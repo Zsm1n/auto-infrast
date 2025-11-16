@@ -279,6 +279,16 @@
           {"combo": ["石棉/2"], "efficiency": 29, "priority": 43},
           {"combo": ["钼铅/2"], "efficiency": 28, "priority": 42}
         ]},
+      "标准化": {
+        "base_combo": ["水月/2"],
+        "base_efficiency": 25,
+        "rules": [
+          {"combo": ["香草", "杰西卡"], "control_center": ["涤火杰西卡/2"], "efficiency": 70, "priority": 50},
+          {"combo": ["调香师/1"], "efficiency": 30, "priority": 48},
+          {"combo": ["史都华德/1"], "efficiency": 30, "priority": 48},
+          {"combo": ["罗比菈塔/1"], "efficiency": 30, "priority": 48},
+          {"combo": ["海沫/2"], "note": "可将莱茵红松转化", "efficiency": 30, "priority": 48}
+        ]},
       "通用单人": [
         { "combo": ["清流/1"], "efficiency": 40, "product": ["Pure Gold"], "note": "20%*N,N=贸易站数", "priority": 60 },
         { "combo": ["苍苔/2"], "efficiency": 40, "product": ["Pure Gold"], "note": "30%+5*n", "priority": 59 },
