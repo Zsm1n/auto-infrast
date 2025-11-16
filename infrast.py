@@ -90,6 +90,11 @@ class WorkplaceOptimizer:
 
         self.operators = self.load_operators()
         self.efficiency_rules = self.load_efficiency_rules()
+        # 动态调整清流的效率：依赖于贸易站数，效率 = 贸易站数 * 20%
+        for rule in self.efficiency_rules:
+            if rule.workplace_type == 'manufacturing_station' and rule.operators == ['清流']:
+                rule.synergy_efficiency = self.trading_stations_count * 20
+                break
         self.workplaces = self.load_workplaces()
         self.fiammetta_targets = []  # 修改：当前菲亚梅塔目标列表
 
@@ -649,7 +654,9 @@ class WorkplaceOptimizer:
             # 递归调用自身处理剩余槽位
             recursive_result = self.optimize_workplace_recursive(
                 workplace, operator_usage, shift_used_names,
-                assigned_ops, used_names, remaining_slots
+                assigned_ops, used_names, remaining_slots,
+                applied_combinations, applied_control_center_reqs,
+                applied_dormitory_reqs, applied_power_station_reqs
             )
 
             assigned_ops.extend(recursive_result['assigned_ops'])
@@ -677,17 +684,20 @@ class WorkplaceOptimizer:
 
     def optimize_workplace_recursive(self, workplace: Workplace, operator_usage: Dict[str, int],
                                      shift_used_names: set, assigned_ops: List[Operator],
-                                     used_names: set, remaining_slots: int) -> Dict[str, Any]:
+                                     used_names: set, remaining_slots: int, applied_combinations: List[str],
+                                     applied_control_center_reqs: List[ControlCenterRequirement],
+                                     applied_dormitory_reqs: List[DormitoryRequirement],
+                                     applied_power_station_reqs: List[PowerStationRequirement]) -> Dict[str, Any]:
         """递归优化工作站的剩余槽位"""
         available_ops = self.get_available_operators()
         op_by_name = {op.name: op for op in available_ops}
         workplace_type = self.get_workplace_type(workplace)
 
         total_synergy = 0.0
-        applied_combinations = []
-        applied_control_center_reqs = []
-        applied_dormitory_reqs = []
-        applied_power_station_reqs = []
+        local_applied_combinations = []
+        local_applied_control_center_reqs = []
+        local_applied_dormitory_reqs = []
+        local_applied_power_station_reqs = []
 
         # 过滤规则：如果规则指定产物，则必须匹配当前产物；未指定则允许
         def rule_matches_products(rule: OperatorEfficiency) -> bool:
@@ -705,6 +715,16 @@ class WorkplaceOptimizer:
                          rule_matches_products(r)]
 
             for rule in all_rules:
+                if workplace_type == 'manufacturing_station' and any(
+                        '自动化' in combo for combo in applied_combinations):
+                    # 自动化组特殊：只允许清流作为通用替补
+                    if rule.apply_each:
+                        if '清流' not in rule.operators:
+                            continue
+                    else:
+                        # 对于普通规则，如果不是清流相关，则跳过
+                        if not any('清流' in op for op in rule.operators):
+                            continue
                 if rule.apply_each:
                     # 对于apply_each规则，评估每个可用干员
                     for op_name in rule.operators:
@@ -718,7 +738,9 @@ class WorkplaceOptimizer:
                         op_obj = op_by_name[op_name]
                         req_elite = {op_name: rule.elite_requirements.get(op_name, 0)}
                         if (not self.check_elite_requirements([op_obj], req_elite) or
-                                not self.check_control_center_requirements(rule.requires_control_center)):
+                                not self.check_control_center_requirements(rule.requires_control_center) or
+                                not self.check_dormitory_requirements(rule.requires_dormitory) or
+                                not self.check_power_station_requirements(rule.requires_power_station)):
                             continue
 
                         efficiency = rule.synergy_efficiency
@@ -748,7 +770,9 @@ class WorkplaceOptimizer:
 
                     op_objs = [op_by_name[op_name] for op_name in required]
                     if (not self.check_elite_requirements(op_objs, rule.elite_requirements) or
-                            not self.check_control_center_requirements(rule.requires_control_center)):
+                            not self.check_control_center_requirements(rule.requires_control_center) or
+                            not self.check_dormitory_requirements(rule.requires_dormitory) or
+                            not self.check_power_station_requirements(rule.requires_power_station)):
                         continue
 
                     efficiency_per_slot = rule.synergy_efficiency / len(required)
@@ -777,13 +801,13 @@ class WorkplaceOptimizer:
                 total_synergy += best_candidate['efficiency']
 
                 if best_candidate['type'] == 'each':
-                    applied_combinations.append(f"{rule.description}({', '.join(required)})")
+                    local_applied_combinations.append(f"{rule.description}({', '.join(required)})")
                 else:
-                    applied_combinations.append(rule.description)
+                    local_applied_combinations.append(rule.description)
 
-                applied_control_center_reqs.extend(rule.requires_control_center)
-                applied_dormitory_reqs.extend(rule.requires_dormitory)
-                applied_power_station_reqs.extend(rule.requires_power_station)
+                local_applied_control_center_reqs.extend(rule.requires_control_center)
+                local_applied_dormitory_reqs.extend(rule.requires_dormitory)
+                local_applied_power_station_reqs.extend(rule.requires_power_station)
             else:
                 # 没有合适的规则，退出循环
                 break
@@ -791,10 +815,10 @@ class WorkplaceOptimizer:
         return {
             'assigned_ops': [],
             'total_synergy': total_synergy,
-            'applied_combinations': applied_combinations,
-            'applied_control_center_reqs': applied_control_center_reqs,
-            'applied_dormitory_reqs': applied_dormitory_reqs,
-            'applied_power_station_reqs': applied_power_station_reqs
+            'applied_combinations': local_applied_combinations,
+            'applied_control_center_reqs': local_applied_control_center_reqs,
+            'applied_dormitory_reqs': local_applied_dormitory_reqs,
+            'applied_power_station_reqs': local_applied_power_station_reqs
         }
 
     def get_optimal_assignments(self, product_requirements: Dict[str, Dict[str, int]] = None) -> Dict[str, Any]:
@@ -1066,7 +1090,7 @@ class WorkplaceOptimizer:
 
 # 使用示例
 if __name__ == "__main__":
-    optimizer = WorkplaceOptimizer('efficiency.json', 'operators.json', 'config.json', debug=False)
+    optimizer = WorkplaceOptimizer('efficiency.json', 'operators.json', 'config.json', debug=True)
     optimizer.display_optimal_assignments()
 
     # 获取最优分配的JSON格式

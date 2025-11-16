@@ -296,6 +296,17 @@
           {"combo": ["罗比菈塔/1"], "efficiency": 30, "priority": 47},
           {"combo": ["海沫/2"], "note": "可将莱茵红松转化", "efficiency": 30, "priority": 47}
         ]},
+      "自动化": [
+        {"combo": ["温蒂/2"], "power": ["承曦格雷伊/2"], "efficiency": 60, "priority": 60},
+        {"combo": ["森蚺/2"], "power": ["承曦格雷伊/2"], "efficiency": 40, "priority": 50},
+        {"combo": ["掠风/2"], "power": ["承曦格雷伊/2"], "efficiency": 20, "priority": 40},
+        {"combo": ["异客/2"], "power": ["承曦格雷伊/2"], "efficiency": 20, "priority": 40},
+        {"combo": ["温蒂/2"], "efficiency": 45, "priority": 55},
+        {"combo": ["森蚺/2"], "efficiency": 30, "priority": 45},
+        {"combo": ["森蚺"], "efficiency": 15, "priority": 30},
+        {"combo": ["掠风/2"], "efficiency": 15, "priority": 30},
+        {"combo": ["异客/2"], "efficiency": 15, "priority": 30}
+      ],
       "红松林": {
         "product": "Battle Record",
         "rules": [
