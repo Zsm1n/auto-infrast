@@ -378,62 +378,6 @@ class WorkplaceOptimizer:
         else:
             return workplace.id.split('_')[0] + '_station'[0] + '_station'
 
-    def calculate_combination_efficiency(self, operators: List[Operator], workplace_type: str) -> tuple[
-        float, List[str], List[ControlCenterRequirement]]:
-        """计算干员组合的效率和应用的组合"""
-        total_efficiency = 0
-        applied_combinations = []
-        applied_control_center_reqs = []
-        used_operator_names = [op.name for op in operators]
-
-        if self.debug:
-            print(f"DEBUG: 计算组合效率 -> 工作站类型: {workplace_type}, 干员: {used_operator_names}")
-
-        # 检查所有可能的组合
-        for rule in self.efficiency_rules:
-            if rule.workplace_type != workplace_type:
-                continue
-
-            # 检查是否满足组合条件
-            if all(op_name in used_operator_names for op_name in rule.operators):
-                # 检查精英化要求
-                if not self.check_elite_requirements(operators, rule.elite_requirements):
-                    if self.debug:
-                        print(f"DEBUG: 精英化不满足，跳过规则: {rule.description}")
-                    continue
-
-                # 检查中枢需求
-                if not self.check_control_center_requirements(rule.requires_control_center):
-                    if self.debug:
-                        cc = ','.join([f"{r.operator}(精{r.elite_required})" for r in rule.requires_control_center])
-                        print(f"DEBUG: 中枢需求不满足({cc})，跳过规则: {rule.description}")
-                    continue
-
-                # 检查宿舍需求
-                if not self.check_dormitory_requirements(rule.requires_dormitory):
-                    if self.debug:
-                        dorm_reqs = [f"{r.operator}(精{r.elite_required})" for r in rule.requires_dormitory]
-                        print(f"DEBUG: 宿舍需求不满足({dorm_reqs})，跳过规则: {rule.description}")
-                    continue
-
-                # 所有条件满足，应用该组合
-                total_efficiency += rule.synergy_efficiency
-                applied_combinations.append(rule.description)
-                applied_control_center_reqs.extend(rule.requires_control_center)
-                if self.debug:
-                    print(f"DEBUG: 生效规则: {rule.description} -> +{rule.synergy_efficiency}%")
-
-        # 如果没有组合效果，计算个体效率
-        if total_efficiency == 0:
-            for op in operators:
-                # 这里可以添加个体效率计算逻辑
-                individual_eff = 0  # 从individual_efficiencies获取
-                total_efficiency += individual_eff
-
-        if self.debug:
-            print(f"DEBUG: 组合最终效率: {total_efficiency}% (只计算干员贡献，不含基地基础)")
-
-        return total_efficiency, applied_combinations, applied_control_center_reqs
 
     def optimize_workplace(self, workplace: Workplace, operator_usage: Dict[str, int],
                            shift_used_names: set) -> AssignmentResult:
@@ -655,9 +599,7 @@ class WorkplaceOptimizer:
             recursive_result = self.optimize_workplace_recursive(
                 workplace, operator_usage, shift_used_names,
                 assigned_ops, used_names, remaining_slots,
-                applied_combinations, applied_control_center_reqs,
-                applied_dormitory_reqs, applied_power_station_reqs
-            )
+                applied_combinations)
 
             assigned_ops.extend(recursive_result['assigned_ops'])
             total_synergy += recursive_result['total_synergy']
@@ -684,10 +626,7 @@ class WorkplaceOptimizer:
 
     def optimize_workplace_recursive(self, workplace: Workplace, operator_usage: Dict[str, int],
                                      shift_used_names: set, assigned_ops: List[Operator],
-                                     used_names: set, remaining_slots: int, applied_combinations: List[str],
-                                     applied_control_center_reqs: List[ControlCenterRequirement],
-                                     applied_dormitory_reqs: List[DormitoryRequirement],
-                                     applied_power_station_reqs: List[PowerStationRequirement]) -> Dict[str, Any]:
+                                     used_names: set, remaining_slots: int, applied_combinations: List[str]) -> Dict[str, Any]:
         """递归优化工作站的剩余槽位"""
         available_ops = self.get_available_operators()
         op_by_name = {op.name: op for op in available_ops}
@@ -984,37 +923,6 @@ class WorkplaceOptimizer:
                 break
         return selected
 
-    def serialize_assignment_result(self, result: AssignmentResult) -> Dict[str, Any]:
-        """序列化分配结果"""
-        return {
-            "workplace_id": result.workplace.id,
-            "workplace_name": result.workplace.name,
-            "optimal_operators": [
-                {
-                    "name": op.name,
-                    "elite": op.elite,
-                    "level": op.level
-                }
-                for op in result.optimal_operators
-            ],
-            "total_efficiency": round(result.total_efficiency, 1),
-            "operator_efficiency": round(result.operator_efficiency, 1),
-            "applied_combinations": result.applied_combinations,
-            "control_center_requirements": [
-                {
-                    "operator": req.operator,
-                    "elite_required": req.elite_required
-                }
-                for req in result.control_center_requirements
-            ],
-            "dormitory_requirements": [
-                {
-                    "operator": req.operator,
-                    "elite_required": req.elite_required
-                }
-                for req in result.dormitory_requirements
-            ]
-        }
 
     def display_optimal_assignments(self):
         """显示最优分配方案（三班制）"""
@@ -1088,7 +996,7 @@ class WorkplaceOptimizer:
         for w in ts + ms:
             print(f"  - {w.id} {w.name} | 最大干员: {w.max_operators} | 基础效率: {w.base_efficiency}%")
 
-# 使用示例
+
 if __name__ == "__main__":
     optimizer = WorkplaceOptimizer('efficiency.json', 'operators.json', 'config.json', debug=True)
     optimizer.display_optimal_assignments()
