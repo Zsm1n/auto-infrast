@@ -998,7 +998,7 @@ class WorkplaceOptimizer:
 
 
 if __name__ == "__main__":
-    optimizer = WorkplaceOptimizer('efficiency.json', 'operators.json', 'config.json', debug=True)
+    optimizer = WorkplaceOptimizer('efficiency.json', 'operators.json', 'config.json')
     optimizer.display_optimal_assignments()
 
     # 获取最优分配的JSON格式
