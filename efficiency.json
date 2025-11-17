@@ -14,6 +14,7 @@
     ],
     "control_center": { "id": "control_center", "name": "控制中枢", "max_operators": 5, "base_efficiency": 0 },
     "meeting_room": {"id": "meeting", "name": "会客室", "max_operators": 2, "base_efficiency": 0},
+    "hire_room": {"id": "hire", "name": "办公室", "max_operators": 1, "base_efficiency": 0},
     "power_station": [
       {"id": "power_1", "name": "发电站1", "max_operators": 1, "base_efficiency": 0},
       {"id": "power_2", "name": "发电站2", "max_operators": 1, "base_efficiency": 0},
@@ -57,16 +58,23 @@
           "priority": -1
         },
         {
-          "combo": ["（需要研究）乌有/2"],
+          "combo": ["乌有/2"],
+          "control_center": ["重岳", "令/2", "琴柳/2", "夕"],
+          "hire": ["桑葚/2"],
+          "process": ["年"],
           "efficiency": 270,
-          "note": "（较麻烦需要研究）搭配满烟火乌有95+40%",
-          "priority": -1
+          "note": "搭配满烟火乌有95+40%",
+          "priority": 130
         },
         {
-          "combo": ["（需要研究）黑键/2", "乌有/2"],
+          "combo": ["黑键/2", "乌有/2"],
+          "control_center": ["重岳", "令/2", "琴柳/2", "夕"],
+          "hire": ["絮雨/2"],
+          "dormitory": ["车尔尼/2", "爱丽丝/2"],
+          "process": ["年"],
           "efficiency": 219,
-          "note": "（需要研究）黑键乌有混用满挂件",
-          "priority": 130
+          "note": "黑键乌有混用满挂件（迷迭香）",
+          "priority": 140
         },
         {
           "combo": ["推进之王", "摩根/2"],
@@ -107,7 +115,7 @@
           "priority": 115
         }
       ]},
-      "孑体系": {
+      "孑12体系": {
         "base_combo": ["孑/1"],
         "base_efficiency": 40,
         "rules": [
@@ -148,7 +156,7 @@
           "priority": 60
         },
         {
-          "combo": ["德克萨斯", "拉普兰德"],
+          "combo": ["德克萨斯", "拉普兰德/2"],
           "efficiency": 57,
           "priority": 59
         },
@@ -157,6 +165,55 @@
           "efficiency": 55,
           "priority": 58
         }
+        ]},
+      "孑0体系": {
+        "base_combo": ["孑/0"],
+        "base_efficiency": 40,
+        "rules": [
+          {
+            "combo": ["银灰/2"],
+            "control_center": ["灵知/2"],
+            "efficiency": 45,
+            "priority": 68
+          },
+          {
+            "combo": ["崖心/2"],
+            "control_center": ["灵知/2"],
+            "efficiency": 40,
+            "priority": 67
+          },
+          {
+            "combo": ["琳琅诗怀雅/2"],
+            "control_center": ["灵知/2"],
+            "efficiency": 60,
+            "priority": 70
+          },
+          {
+            "combo": ["锏/2"],
+            "control_center": ["灵知/2"],
+            "efficiency": 60,
+            "priority": 70
+          },
+          {
+            "combo": ["德克萨斯", "拉普兰德/2"],
+            "efficiency": 81,
+            "priority": 66
+          },
+          {
+            "combo": ["瑰盐/2"],
+            "efficiency": 42,
+            "priority": 58
+          },
+          {
+          "combo": ["银灰/2"],
+          "efficiency": 36,
+          "priority": 56
+          },
+          {
+          "combo": ["可颂/2"],
+          "efficiency": 34,
+          "priority": 54
+          }
         ]},
       "通用组合": [
         {

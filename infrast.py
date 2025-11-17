@@ -3,7 +3,6 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 
 
-
 @dataclass
 class Operator:
     id: str
@@ -16,19 +15,7 @@ class Operator:
 
 
 @dataclass
-class ControlCenterRequirement:
-    operator: str
-    elite_required: int
-
-
-@dataclass
-class DormitoryRequirement:
-    operator: str
-    elite_required: int
-
-
-@dataclass
-class PowerStationRequirement:
+class RoomRequirement:
     operator: str
     elite_required: int
 
@@ -41,9 +28,10 @@ class OperatorEfficiency:
     synergy_efficiency: float
     description: str
     elite_requirements: Dict[str, int]
-    requires_control_center: List[ControlCenterRequirement]
-    requires_dormitory: List[DormitoryRequirement]
-    requires_power_station: List[PowerStationRequirement]  # 新增
+    requires_control_center: List[RoomRequirement]
+    requires_dormitory: List[RoomRequirement]
+    requires_power_station: List[RoomRequirement]
+    requires_hire: List[RoomRequirement]  # 新增
     special_conditions: Optional[str] = None
     apply_each: bool = False
     priority: int = 0
@@ -67,9 +55,10 @@ class AssignmentResult:
     total_efficiency: float
     operator_efficiency: float
     applied_combinations: List[str]
-    control_center_requirements: List[ControlCenterRequirement]
-    dormitory_requirements: List[DormitoryRequirement]
-    power_station_requirements: List[PowerStationRequirement]  # 新增
+    control_center_requirements: List[RoomRequirement]
+    dormitory_requirements: List[RoomRequirement]
+    power_station_requirements: List[RoomRequirement]
+    hire_requirements: List[RoomRequirement]
 
 
 class WorkplaceOptimizer:
@@ -153,20 +142,28 @@ class WorkplaceOptimizer:
                         control_center_reqs = []
                         dormitory_reqs = []
                         power_station_reqs = []
+                        hire_reqs = []
                         if 'control_center' in rule_data:
                             for cc_str in rule_data['control_center']:
                                 name, elite = parse_operator_string(cc_str)
-                                control_center_reqs.append(ControlCenterRequirement(operator=name, elite_required=elite))
+                                control_center_reqs.append(
+                                    RoomRequirement(operator=name, elite_required=elite))
                         if 'dormitory' in rule_data:
                             for dorm_str in rule_data['dormitory']:
                                 name, elite = parse_operator_string(dorm_str)
-                                dormitory_reqs.append(DormitoryRequirement(operator=name, elite_required=elite))
+                                dormitory_reqs.append(RoomRequirement(operator=name, elite_required=elite))
                         if 'power_station' in rule_data:
                             for pow_str in rule_data['power_station']:
                                 op_name, elite = parse_operator_string(pow_str)
-                                power_station_reqs.append(PowerStationRequirement(operator=op_name, elite_required=elite))
+                                power_station_reqs.append(
+                                    RoomRequirement(operator=op_name, elite_required=elite))
+                        if 'hire' in rule_data:
+                            for hire_str in rule_data['hire']:
+                                op_name, elite = parse_operator_string(hire_str)
+                                hire_reqs.append(RoomRequirement(operator=op_name, elite_required=elite))
 
-                        description = "通用单人" if rule_data.get('apply_each', False) else f"{system_name} - {', '.join(operators)}"
+                        description = "通用单人" if rule_data.get('apply_each',
+                                                                  False) else f"{system_name} - {', '.join(operators)}"
 
                         # 解析产物（默认为空列表）
                         rule_products = rule_data.get('product', [])
@@ -183,10 +180,11 @@ class WorkplaceOptimizer:
                             requires_control_center=control_center_reqs,
                             requires_dormitory=dormitory_reqs,
                             requires_power_station=power_station_reqs,
+                            requires_hire=hire_reqs,
                             special_conditions=None,
                             apply_each=rule_data.get('apply_each', False),
                             priority=rule_data.get('priority', 0),
-                            products=rule_products  # 新增
+                            products=rule_products
                         ))
 
                 elif isinstance(system_data, dict):
@@ -217,19 +215,25 @@ class WorkplaceOptimizer:
                         control_center_reqs = []
                         dormitory_reqs = []
                         power_station_reqs = []
+                        hire_reqs = []
                         if 'control_center' in rule_data:
                             for cc_str in rule_data['control_center']:
                                 name, elite = parse_operator_string(cc_str)
                                 control_center_reqs.append(
-                                    ControlCenterRequirement(operator=name, elite_required=elite))
+                                    RoomRequirement(operator=name, elite_required=elite))
                         if 'dormitory' in rule_data:
                             for dorm_str in rule_data['dormitory']:
                                 name, elite = parse_operator_string(dorm_str)
-                                dormitory_reqs.append(DormitoryRequirement(operator=name, elite_required=elite))
+                                dormitory_reqs.append(RoomRequirement(operator=name, elite_required=elite))
                         if 'power_station' in rule_data:
                             for pow_str in rule_data['power_station']:
                                 op_name, elite = parse_operator_string(pow_str)
-                                power_station_reqs.append(PowerStationRequirement(operator=op_name, elite_required=elite))
+                                power_station_reqs.append(
+                                    RoomRequirement(operator=op_name, elite_required=elite))
+                        if 'hire' in rule_data:
+                            for hire_str in rule_data['hire']:
+                                op_name, elite = parse_operator_string(hire_str)
+                                hire_reqs.append(RoomRequirement(operator=op_name, elite_required=elite))
 
                         # 合并基础和规则产物
                         rule_products = rule_data.get('product', base_products)
@@ -252,7 +256,8 @@ class WorkplaceOptimizer:
                             apply_each=rule_data.get('apply_each', False),
                             priority=rule_data.get('priority', 0),
                             products=rule_products,
-                            requires_power_station=power_station_reqs  # 新增
+                            requires_power_station=power_station_reqs,
+                            requires_hire=hire_reqs  # 新增
                         ))
 
         expanded_rules.sort(key=lambda r: (r.priority, r.synergy_efficiency), reverse=True)
@@ -272,9 +277,10 @@ class WorkplaceOptimizer:
 
         # 从 efficiency.json 取默认值（第一个工作站）
         default_trading = self.efficiency_data['workplaces']['trading_stations'][0] if \
-        self.efficiency_data['workplaces']['trading_stations'] else {'max_operators': 3, 'base_efficiency': 100}
+            self.efficiency_data['workplaces']['trading_stations'] else {'max_operators': 3, 'base_efficiency': 100}
         default_manufacturing = self.efficiency_data['workplaces']['manufacturing_stations'][0] if \
-        self.efficiency_data['workplaces']['manufacturing_stations'] else {'max_operators': 3, 'base_efficiency': 100}
+            self.efficiency_data['workplaces']['manufacturing_stations'] else {'max_operators': 3,
+                                                                               'base_efficiency': 100}
 
         # 动态创建贸易站
         for i in range(self.trading_stations_count):
@@ -329,29 +335,9 @@ class WorkplaceOptimizer:
                     return False
         return True
 
-    def check_control_center_requirements(self, control_center_reqs: List[ControlCenterRequirement]) -> bool:
-        """检查中枢需求是否满足：动态判断干员是否拥有且精英等级满足"""
-        for req in control_center_reqs:
-            if req.operator not in self.operators:
-                return False
-            op = self.operators[req.operator]
-            if not op.own or op.elite < req.elite_required:
-                return False
-        return True
-
-    def check_dormitory_requirements(self, dormitory_reqs: List[DormitoryRequirement]) -> bool:
-        """检查宿舍需求是否满足"""
-        for req in dormitory_reqs:
-            if req.operator not in self.operators:
-                return False
-            op = self.operators[req.operator]
-            if not op.own or op.elite < req.elite_required:
-                return False
-        return True
-
-    def check_power_station_requirements(self, dormitory_reqs: List[PowerStationRequirement]) -> bool:
-        """检查宿舍需求是否满足"""
-        for req in dormitory_reqs:
+    def check_room_requirements(self, room_reqs: List[RoomRequirement]) -> bool:
+        """检查站点需求是否满足：动态判断干员是否拥有且精英等级满足"""
+        for req in room_reqs:
             if req.operator not in self.operators:
                 return False
             op = self.operators[req.operator]
@@ -378,7 +364,6 @@ class WorkplaceOptimizer:
         else:
             return workplace.id.split('_')[0] + '_station'[0] + '_station'
 
-
     def optimize_workplace(self, workplace: Workplace, operator_usage: Dict[str, int],
                            shift_used_names: set) -> AssignmentResult:
         """优化单个工作站的干员配置（体系优先 + 通用替补），考虑全局干员使用限制和班次内重复限制。
@@ -404,9 +389,10 @@ class WorkplaceOptimizer:
         used_names = set()
         total_synergy = 0.0
         applied_combinations: List[str] = []
-        applied_control_center_reqs: List[ControlCenterRequirement] = []
-        applied_dormitory_reqs: List[DormitoryRequirement] = []
-        applied_power_station_reqs: List[PowerStationRequirement] = []
+        applied_control_center_reqs: List[RoomRequirement] = []
+        applied_dormitory_reqs: List[RoomRequirement] = []
+        applied_power_station_reqs: List[RoomRequirement] = []
+        applied_hire_reqs: List[RoomRequirement] = []
 
         # 收集所有可用的规则（包括特定体系和通用规则）
         all_rules = [r for r in self.efficiency_rules if
@@ -469,28 +455,45 @@ class WorkplaceOptimizer:
                     continue
 
                 op_objs = [op_by_name[op_name] for op_name in required]
+
+                # 在 op_objs 定义后进行精英检查
+                if "孑0体系" in rule.description:
+                    # 检查孑是否精0
+                    if not any(op.name == "孑" and op.elite == 0 for op in op_objs if op.name == "孑"):
+                        continue
+                elif "孑12体系" in rule.description:
+                    # 检查孑是否精1或精2
+                    if not any(op.name == "孑" and op.elite in [1, 2] for op in op_objs if op.name == "孑"):
+                        continue
+
                 if not self.check_elite_requirements(op_objs, rule.elite_requirements):
                     if self.debug:
                         print(f"DEBUG:  精英要求不满足: {rule.elite_requirements}")
                     continue
 
-                if not self.check_control_center_requirements(rule.requires_control_center):
+                if not self.check_room_requirements(rule.requires_control_center):
                     if self.debug:
                         cc_reqs = [f"{r.operator}(精{r.elite_required})" for r in rule.requires_control_center]
                         print(f"DEBUG:  中枢需求不满足: {cc_reqs}")
                     continue
 
                 # 检查宿舍需求
-                if not self.check_dormitory_requirements(rule.requires_dormitory):
+                if not self.check_room_requirements(rule.requires_dormitory):
                     if self.debug:
                         dorm_reqs = [f"{r.operator}(精{r.elite_required})" for r in rule.requires_dormitory]
                         print(f"DEBUG: 宿舍需求不满足({dorm_reqs})，跳过规则: {rule.description}")
                     continue
 
-                if not self.check_power_station_requirements(rule.requires_power_station):
+                if not self.check_room_requirements(rule.requires_power_station):
                     if self.debug:
                         power_reqs = [f"{r.operator}(精{r.elite_required})" for r in rule.requires_power_station]
                         print(f"DEBUG: 发电站需求不满足({power_reqs})，跳过规则: {rule.description}")
+                    continue
+
+                if not self.check_room_requirements(rule.requires_hire):
+                    if self.debug:
+                        hire_reqs = [f"{r.operator}(精{r.elite_required})" for r in rule.requires_hire]
+                        print(f"DEBUG: 办公室需求不满足({hire_reqs})，跳过规则: {rule.description}")
                     continue
 
                 # 计算效率（人均效率）
@@ -524,8 +527,7 @@ class WorkplaceOptimizer:
 
                     op_obj = op_by_name[op_name]
                     req_elite = {op_name: rule.elite_requirements.get(op_name, 0)}
-                    if (not self.check_elite_requirements([op_obj], req_elite) or
-                            not self.check_control_center_requirements(rule.requires_control_center)):
+                    if not self.check_elite_requirements([op_obj], req_elite):
                         continue
 
                     efficiency_per_slot = rule.synergy_efficiency
@@ -553,7 +555,10 @@ class WorkplaceOptimizer:
 
                 op_objs = [op_by_name[op_name] for op_name in required]
                 if (not self.check_elite_requirements(op_objs, rule.elite_requirements) or
-                        not self.check_control_center_requirements(rule.requires_control_center)):
+                        not self.check_room_requirements(rule.requires_control_center) or
+                        not self.check_room_requirements(rule.requires_dormitory) or
+                        not self.check_room_requirements(rule.requires_power_station) or
+                        not self.check_room_requirements(rule.requires_hire)):
                     continue
 
                 efficiency_per_slot = rule.synergy_efficiency / len(required)
@@ -607,6 +612,7 @@ class WorkplaceOptimizer:
             applied_control_center_reqs.extend(recursive_result['applied_control_center_reqs'])
             applied_dormitory_reqs.extend(recursive_result['applied_dormitory_reqs'])
             applied_power_station_reqs.extend(recursive_result['applied_power_station_reqs'])
+            applied_hire_reqs.extend(recursive_result.get('applied_hire_reqs', []))
 
         # 返回结果
         if self.debug:
@@ -621,7 +627,8 @@ class WorkplaceOptimizer:
             applied_combinations=applied_combinations,
             control_center_requirements=applied_control_center_reqs,
             dormitory_requirements=applied_dormitory_reqs,
-            power_station_requirements=applied_power_station_reqs
+            power_station_requirements=applied_power_station_reqs,
+            hire_requirements=applied_hire_reqs
         )
 
     def optimize_workplace_recursive(self, workplace: Workplace, operator_usage: Dict[str, int],
@@ -637,6 +644,7 @@ class WorkplaceOptimizer:
         local_applied_control_center_reqs = []
         local_applied_dormitory_reqs = []
         local_applied_power_station_reqs = []
+        local_applied_hire_reqs = []
 
         # 过滤规则：如果规则指定产物，则必须匹配当前产物；未指定则允许
         def rule_matches_products(rule: OperatorEfficiency) -> bool:
@@ -677,9 +685,10 @@ class WorkplaceOptimizer:
                         op_obj = op_by_name[op_name]
                         req_elite = {op_name: rule.elite_requirements.get(op_name, 0)}
                         if (not self.check_elite_requirements([op_obj], req_elite) or
-                                not self.check_control_center_requirements(rule.requires_control_center) or
-                                not self.check_dormitory_requirements(rule.requires_dormitory) or
-                                not self.check_power_station_requirements(rule.requires_power_station)):
+                                not self.check_room_requirements(rule.requires_control_center) or
+                                not self.check_room_requirements(rule.requires_dormitory) or
+                                not self.check_room_requirements(rule.requires_power_station) or
+                                not self.check_room_requirements(rule.requires_hire)):
                             continue
 
                         efficiency = rule.synergy_efficiency
@@ -699,7 +708,7 @@ class WorkplaceOptimizer:
                         continue
 
                     max_usage_check = lambda \
-                        op_name: 3 if op_name in self.fiammetta_targets and workplace_type == 'trading_station' else 2
+                            op_name: 3 if op_name in self.fiammetta_targets and workplace_type == 'trading_station' else 2
                     if any(op_name in used_names or
                            op_name in shift_used_names or
                            op_name not in op_by_name or
@@ -709,9 +718,10 @@ class WorkplaceOptimizer:
 
                     op_objs = [op_by_name[op_name] for op_name in required]
                     if (not self.check_elite_requirements(op_objs, rule.elite_requirements) or
-                            not self.check_control_center_requirements(rule.requires_control_center) or
-                            not self.check_dormitory_requirements(rule.requires_dormitory) or
-                            not self.check_power_station_requirements(rule.requires_power_station)):
+                            not self.check_room_requirements(rule.requires_control_center) or
+                            not self.check_room_requirements(rule.requires_dormitory) or
+                            not self.check_room_requirements(rule.requires_power_station) or
+                            not self.check_room_requirements(rule.requires_hire)):
                         continue
 
                     efficiency_per_slot = rule.synergy_efficiency / len(required)
@@ -747,6 +757,7 @@ class WorkplaceOptimizer:
                 local_applied_control_center_reqs.extend(rule.requires_control_center)
                 local_applied_dormitory_reqs.extend(rule.requires_dormitory)
                 local_applied_power_station_reqs.extend(rule.requires_power_station)
+                local_applied_hire_reqs.extend(rule.requires_hire)
             else:
                 # 没有合适的规则，退出循环
                 break
@@ -757,7 +768,8 @@ class WorkplaceOptimizer:
             'applied_combinations': local_applied_combinations,
             'applied_control_center_reqs': local_applied_control_center_reqs,
             'applied_dormitory_reqs': local_applied_dormitory_reqs,
-            'applied_power_station_reqs': local_applied_power_station_reqs
+            'applied_power_station_reqs': local_applied_power_station_reqs,
+            'applied_hire_reqs': local_applied_hire_reqs
         }
 
     def get_optimal_assignments(self, product_requirements: Dict[str, Dict[str, int]] = None) -> Dict[str, Any]:
@@ -913,7 +925,8 @@ class WorkplaceOptimizer:
         op_scores = {}
         for rule in trading_rules:
             for op in rule.operators:
-                if op in self.operators and self.operators[op].own and self.operators[op].elite >= 2 and op not in selected:
+                if op in self.operators and self.operators[op].own and self.operators[
+                    op].elite >= 2 and op not in selected:
                     score = rule.synergy_efficiency / len(rule.operators)  # 平均贡献
                     op_scores[op] = op_scores.get(op, 0) + score
         sorted_ops = sorted(op_scores, key=op_scores.get, reverse=True)
@@ -922,7 +935,6 @@ class WorkplaceOptimizer:
             if len(selected) >= 3:
                 break
         return selected
-
 
     def display_optimal_assignments(self, assignments):
         """显示最优分配方案（三班制）"""
@@ -944,8 +956,10 @@ class WorkplaceOptimizer:
             for room_type, rooms in plan['rooms'].items():
                 if room_type in ['trading', 'manufacture']:
                     name = {'trading': '贸易站', 'manufacture': '制造站'}
+                    product_dict = {'LMD': '龙门币', 'Orundum': '合成玉', 'Pure Gold': '赤金',
+                                    'Originium Shard': '源石碎片', 'Battle Record': '作战记录'}
                     for i, room in enumerate(rooms):
-                        product = room.get('product', '无')
+                        product = product_dict.get(room.get('product', '无'), '无')
                         operators = room.get('operators', [])
                         autofill = room.get('autofill', True)
                         print(f"  {name[room_type]} {i + 1}: 产物={product}, 干员={operators}, 自动填充={autofill}")
@@ -986,7 +1000,8 @@ class WorkplaceOptimizer:
         print(f"DEBUG: 效率规则总数: {len(self.efficiency_rules)}，显示前 {limit} 项")
         for i, rule in enumerate(self.efficiency_rules[:limit]):
             cc = ','.join([f"{r.operator}(精{r.elite_required})" for r in rule.requires_control_center])
-            print(f"  [{i+1}] {rule.description} | 类型: {rule.workplace_type} | 干员: {', '.join(rule.operators)} | 协同: {rule.synergy_efficiency}% | 中枢: {cc} | 精英要求: {rule.elite_requirements}")
+            print(
+                f"  [{i + 1}] {rule.description} | 类型: {rule.workplace_type} | 干员: {', '.join(rule.operators)} | 协同: {rule.synergy_efficiency}% | 中枢: {cc} | 精英要求: {rule.elite_requirements}")
 
     def print_workplaces(self):
         ts = self.workplaces.get('trading_stations', [])
