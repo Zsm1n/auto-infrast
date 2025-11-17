@@ -924,9 +924,8 @@ class WorkplaceOptimizer:
         return selected
 
 
-    def display_optimal_assignments(self):
+    def display_optimal_assignments(self, assignments):
         """显示最优分配方案（三班制）"""
-        assignments = self.get_optimal_assignments()
 
         print("=== 最优工作站分配方案（三班制）===")
         print(f"标题: {assignments['title']}")
@@ -999,10 +998,10 @@ class WorkplaceOptimizer:
 
 if __name__ == "__main__":
     optimizer = WorkplaceOptimizer('efficiency.json', 'operators.json', 'config.json')
-    optimizer.display_optimal_assignments()
 
     # 获取最优分配的JSON格式
     optimal_assignments = optimizer.get_optimal_assignments()
+    optimizer.display_optimal_assignments(optimal_assignments)
 
     # 保存最优分配结果
     with open('optimal_assignments.json', 'w', encoding='utf-8') as f:
